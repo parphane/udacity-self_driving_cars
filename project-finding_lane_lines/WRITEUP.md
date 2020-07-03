@@ -26,8 +26,7 @@ The initial and processed images will look like this:
   * Installed non Anaconda (e.g. moviepy) packages
     * Environments > <environment> > Open terminal > pip install moviepy
 * Worked on my private gitHub repository
-  * 
-
+  * https://github.com/parphane/udacity-self_driving_cars
 
 ---
 
