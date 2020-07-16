@@ -19,7 +19,7 @@ The initial and processed images will look like this:
 
 ## Side notes
 
-* Imported all files fromt he notebook using the zip function
+* Imported all files from he notebook using the zip function
   * Jupyter > New > Terminal
   * zip -r project-finding_lane_lines CarND-LaneLines-P1
 * Used a local Anaconda / Jupyter notebook to work
