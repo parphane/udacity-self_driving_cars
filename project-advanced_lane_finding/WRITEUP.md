@@ -43,8 +43,8 @@ Note: Please refer to the Jupyter notebook for more detail and code on each sect
 [image20]: ./output_images/identified_lanes.png "Warped identified lanes"
 [image21]: ./output_images/lane_curvature.png "Lane curvature"
 [image22]: ./output_images/weighted_lanes.png "Overlay on image"
-[image23]: ./output_images/information_overlay.png "Video information overlay"
-[image24]: ./output_images/challenge_video_processed.gif "Video processed"
+[image23]: ./output_images/project_video_overlay.png "Video project information overlay"
+[image24]: ./output_images/challenge_video_overlay.png "Video challenge information overlay"
 
 ---
 
@@ -341,10 +341,15 @@ Contains the code for video processing
 
 ### 12.1. Normal video
 
+**See: project_video_processed.mp4**
 ![alt text][image23]
-See: challenge_video_processed.mp4
 
-### 12.2. Hard video
+### 12.2. Challenge Harder video
+
+**See: challenge_video_processed.mp4**
+![alt text][image24]
+
+### 12.3. Harder video
 
 There is still work to be done here... not useful to display
 
