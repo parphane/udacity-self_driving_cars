@@ -35,12 +35,24 @@ The goals / steps of this project are the following:
 
 ### Side notes
 
-* Imported all files from he notebook using the zip function
+* Imported all files from the notebook using the zip function
   * Jupyter > New > Terminal
   * zip -r CarND-Traffic-Sign-Classifier-Project.zip ./
 * Used a local Anaconda / Jupyter notebook to work
   * Environments > <environment> > Open terminal
     * pip install tensorflow==1.3
+* Changed default browser and path for Jupyter terminal: "New > (Other) Terminal"
+  * >jupyter notebook --generate-config
+  * Jupyter configuration: C:\Users\<USER>\.jupyter\jupyter_notebook_config.py
+  * Uncomment the following line and complete with appropriate path
+  * c.NotebookApp.browser = u'C:/Program Files/Mozilla Firefox/firefox.exe %s'
+  * c.NotebookApp.notebook_dir = 'D:/workspaces'
+* Remove autoclosing and add lane numbers
+  * from notebook.services.config import ConfigManager
+  * c = ConfigManager()
+  * c.update('notebook', {"CodeCell": {"cm_config": {"autoCloseBrackets": False, "lineNumbers": True}}})  
+
+
 * Worked on my private gitHub repository
   * https://github.com/parphane/udacity-self_driving_cars
 
