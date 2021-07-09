@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt # All plots
 import math # For generic math operations
 import numpy as np
 
-import tensorflow as tf
+#import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Cropping2D
 from keras.layers.core import Dense, Activation, Flatten, Dropout, Lambda
-from keras.layers.convolutional import Convolution2D
+from keras.layers.convolutional import Conv2D, Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.advanced_activations import ELU
 from keras.regularizers import l2
@@ -30,8 +30,12 @@ def main():
 
     imgs_path, snsrs, lines = load_driving_data(driving_log_path)
 
+    print("########## Driving log info:")
+    print("- Samples: {}".format(len(imgs_path)/3))
+    print("- Samples*3 (Left/Right): {}".format(len(imgs_path)))
+    
     rand_imgs_path, rand_snsrs = augment_snsrs(imgs_path, snsrs)
-
+    
     augmented_imgs_path = np.concatenate((imgs_path, rand_imgs_path))
     augmented_snsrs = np.concatenate((snsrs, rand_snsrs))
     # Create a flag for randomizing image during training
@@ -39,11 +43,16 @@ def main():
 
     shuffled_imgs_path, shuffled_snsrs, shuffled_rand_flag = UnisonShuffle(augmented_imgs_path, augmented_snsrs,
                                                                            augmented_rand_flag)
+    
 
-    X_train, X_test, y_train, y_test, r_train, r_test = \
+    print("########## Augmented data info:")
+    print("- Augmented samples: {}".format(len(rand_imgs_path)))
+    print("- Driving+augmented samples: {}".format(len(shuffled_imgs_path)))
+
+    X_train, X_valid, y_train, y_valid, r_train, r_valid = \
         train_test_split(shuffled_imgs_path, shuffled_snsrs, shuffled_rand_flag, test_size=0.2, random_state=42,
                          shuffle=True)
-    X_train, X_valid, y_train, y_valid, r_train, r_valid = \
+    X_train, X_test, y_train, y_test, r_train, r_test = \
         train_test_split(X_train, y_train, r_train, test_size=0.125, random_state=1)
 
     # Generators for training and validation data
@@ -55,9 +64,16 @@ def main():
     model = model_nVidia()
 
     # Train model
+    print("########## Training info:")
+    print("- Training samples: {}".format(len(X_train)))
+    print("- Validation samples: {}".format(len(X_valid)))
+    print("- Epochs: {}".format(EPOCHS))
+    print("- Generator batches size: {}".format(BATCH_SIZE))
+
     model.compile(loss='mse', optimizer='adam')
-    model.fit_generator(train_generator, samples_per_epoch=len(X_train), validation_data=valid_generator,
-                        nb_val_samples=len(X_valid), nb_epoch=EPOCHS, verbose=1)
+    model.fit_generator(train_generator, steps_per_epoch=len(X_train)/BATCH_SIZE,
+                        validation_data=valid_generator, validation_steps=len(X_valid)/BATCH_SIZE,
+                        epochs=EPOCHS, verbose=1)
 
     # Save model
     model.save('model.h5')
@@ -206,16 +222,20 @@ def model_nVidia():
 
     # Crop irrelevant data from FOV
     model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
-
+  
     # Normalize and center (using lambda) (after crop to save resources)
     model.add(Lambda(lambda x: (x / 255.0) - 0.5, input_shape=(160, 320, 3)))
 
-    # Nvidia model
-    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(36, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(48, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(64, 3, 3, activation='relu'))
-    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    
+    
+    # Nvidia model    
+    model.add(Conv2D(24, (5, 5), strides=(2, 2), activation="relu"))
+    model.add(Conv2D(36, (5, 5), strides=(2, 2), activation="relu"))
+    model.add(Conv2D(48, (5, 5), strides=(2, 2), activation='relu'))
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+
+   
     model.add(Flatten())
     model.add(Dense(100))
     model.add(Dense(50))
