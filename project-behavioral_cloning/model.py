@@ -20,11 +20,10 @@ from keras.regularizers import l2
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, Callback
 from sklearn.model_selection import train_test_split
-from sklearn.utils import shuffle
 
 def main():
     
-    EPOCHS = 5
+    EPOCHS = 10
     BATCH_SIZE = 32
     driving_log_path = 'data/driving_log.csv'
 
@@ -71,12 +70,13 @@ def main():
     print("- Generator batches size: {}".format(BATCH_SIZE))
 
     model.compile(loss='mse', optimizer='adam')
-    model.fit_generator(train_generator, steps_per_epoch=len(X_train)/BATCH_SIZE,
+    history_object = model.fit_generator(train_generator, steps_per_epoch=len(X_train)/BATCH_SIZE,
                         validation_data=valid_generator, validation_steps=len(X_valid)/BATCH_SIZE,
                         epochs=EPOCHS, verbose=1)
 
     # Save model
-    model.save('model.h5')
+    model.save('model.h5')   
+    
 
 def load_driving_data(driving_log_path, header=True, delimiter=',', sa_lr_corr=0.2, verbose=True):
     # Images path is expected to be relative to the driving data directory
@@ -216,47 +216,54 @@ def normalize_gray(imgs, max=255):
     half = max/2.0
     return (imgs - half)/half
 
+CROP_TOP = 70
+CROP_BOT = 25
+SHAPE_H_CROPPED = 160-CROP_TOP-CROP_BOT
+
 
 def model_nVidia():
     model = Sequential()
-
+    
     # Crop irrelevant data from FOV
-    model.add(Cropping2D(cropping=((70, 25), (0, 0)), input_shape=(160, 320, 3)))
-  
+    model.add(Cropping2D(cropping=((CROP_TOP,CROP_BOT), (0,0)), input_shape=(160,320,3)))
+    
     # Normalize and center (using lambda) (after crop to save resources)
-    model.add(Lambda(lambda x: (x / 255.0) - 0.5, input_shape=(160, 320, 3)))
-
+    model.add(Lambda(lambda x: (x / 255.0) - 0.5, input_shape=(SHAPE_H_CROPPED,320,3)))
     
-    
-    # Nvidia model    
+    # Nvidia model
+    # Dropouts added as per "Tips For Using Dropout" https://machinelearningmastery.com/dropout-regularization-deep-learning-models-keras/    
+    model.add(Dropout(0.2, input_shape=(SHAPE_H_CROPPED,320,3)))
     model.add(Conv2D(24, (5, 5), strides=(2, 2), activation="relu"))
     model.add(Conv2D(36, (5, 5), strides=(2, 2), activation="relu"))
     model.add(Conv2D(48, (5, 5), strides=(2, 2), activation='relu'))
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(Conv2D(64, (3, 3), activation='relu'))
-
-   
+    
     model.add(Flatten())
     model.add(Dense(100))
+    model.add(Dropout(0.2))
     model.add(Dense(50))
+    model.add(Dropout(0.2))
     model.add(Dense(10))
+    model.add(Dropout(0.2))
     model.add(Dense(1))
-
+    
     return model
 
 
-def generator(samples_paths, samples_angles, samples_rand_flags, batch_size):
+def generator(samples_paths, samples_snsrs, samples_rand_flags, batch_size):
     samples_count = len(samples_paths)
 
     while True:
-        # Samples are already shuffled
-        # sklearn.utils.shuffle(samples)
+        # Shuffle samples for each epoch
+        samples_paths, samples_snsrs, samples_rand_flags = UnisonShuffle(samples_paths, samples_snsrs,
+                                                                           samples_rand_flags)
 
         # For each batch sized slice available from the samples
         for offset in range(0, samples_count, batch_size):
             # Retrieve batch samples
             batch_paths = samples_paths[offset:offset + batch_size]
-            batch_angles = samples_angles[offset:offset + batch_size]
+            batch_snsrs = samples_snsrs[offset:offset + batch_size]
             batch_rand_flags = samples_rand_flags[offset:offset + batch_size]
 
             images = []
@@ -270,7 +277,7 @@ def generator(samples_paths, samples_angles, samples_rand_flags, batch_size):
                 if (batch_rand_flags[i] > 0):
                     image = rand_transform(image)
                 images.append(image)
-                angles.append(batch_angles[i])
+                angles.append(batch_snsrs[i])
 
             # Transform arrays to np arrays
             X = np.array(images)
