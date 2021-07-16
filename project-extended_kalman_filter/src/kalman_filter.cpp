@@ -51,12 +51,12 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   float vx = x_[2];
   float vy = x_[3];
   
-  // Compute rho theta rho_dot (18. Multivariate Taylor Series Expansion)
+  // Compute rho phi rho_dot (18. Multivariate Taylor Series Expansion)
   // Avoiding x=0 for atan
   if (px < 0.0001) {
     px = 0.0001;
   } 
-  float theta = atan2(py, px);
+  float phi = atan2(py, px);
   
   float rho = sqrt(px*px + py*py);
   // Avoiding division by zero (using snippet from 20. Jacobian Matrix Part 2)
@@ -67,23 +67,23 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   
   // Initialize h(x_) (18. Multivariate Taylor Series Expansion)
   VectorXd h = VectorXd(3);
-  h << rho, theta, rho_dot;
-
-  // Normalize the angle between -Pi and Pi
-  // Inspired by https://stackoverflow.com/questions/11498169/dealing-with-angle-wrap-in-c-code
-  // Get remainder (-2Pi<=h<=2Pi) from division by 2*Pi rad (360deg)
-  double h = remainder(h[1],2.0*M_PI);
-  // If angle is above Pi rad (180deg)
-  if (h[1] > M_PI)
-      // Remove 2Pi rad (360deg) to obtain -Pi<=h<=Pi domain angle
-      h[1] -= (2.0 * M_PI);
-  // If angle is below -Pi rad (-180deg)
-  if (h[1] < -M_PI)
-      // Add 2Pi rad (360deg) to obtain -Pi<=h<=Pi domain angle
-      h[1] += (2.0 * M_PI);
+  h << rho, phi, rho_dot;
 
   // Initialize y
   VectorXd y = z-h;
+  
+  // Normalize the angle between -Pi and Pi
+  // Inspired by https://stackoverflow.com/questions/11498169/dealing-with-angle-wrap-in-c-code
+  // Get remainder (-2Pi<=h<=2Pi) from division by 2*Pi rad (360deg)
+  double y = remainder(y[1],2.0*M_PI);
+  // If angle is above Pi rad (180deg)
+  if (y[1] > M_PI)
+      // Remove 2Pi rad (360deg) to obtain -Pi<=h<=Pi domain angle
+      y[1] -= (2.0 * M_PI);
+  // If angle is below -Pi rad (-180deg)
+  if (y[1] < -M_PI)
+      // Add 2Pi rad (360deg) to obtain -Pi<=h<=Pi domain angle
+      y[1] += (2.0 * M_PI);
 
   MeasurementUpdate(y);
 }
