@@ -31,7 +31,7 @@ The goals / steps of this project are the following:
 
 * Workspace
    * Udacity: [Udacity VM](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/3feb3671-6252-4c25-adf0-e963af4d9d4a/concepts/a5facabd-2879-4b98-b7fd-f47b75026069)
-   * Local - Windows (NOT WORKING ABANDONNED):
+   * Local - Windows (NOT WORKING - ABANDONNED):
        * [MinGW-w64](https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/installer/mingw-w64-install.exe/download)
            * Options
                * Version: 8.1.0
@@ -60,12 +60,12 @@ The goals / steps of this project are the following:
         * [libuv](https://libuv.org/)
             * To be investigated
         
-
+---
 ## 3. Useful notes
 
 * Visual Studio Code
     * Markdown side by side view: Ctrl+K V
-
+---
 ## 4. Processing flow
 **TODO: ADD MATRIX DESCRIPTION AND EXAMPLE FOR LIDAR/RADAR**
 [Markdown mathematic formulas](https://csrgxtu.github.io/2015/03/20/Writing-Mathematic-Fomulars-in-Markdown/)
@@ -112,6 +112,22 @@ $$Q = \begin{bmatrix}
 0 & \frac{Δt^{3}}{2}\sigma^{2}_{ay} & 0 & Δt^{2}\sigma^{2}_{ay} ​\\
 \end{bmatrix}$$
 * z: Measurement
+$$z_{Lidar} = \begin{bmatrix}
+p_{x}\\
+p_{y}\\
+\end{bmatrix}$$
+$$Polar: z_{Radar} = \begin{bmatrix}
+\rho\\
+\phi\\
+\dot\rho\\
+\end{bmatrix}
+\rarr Cartesian: z_{Radar} = \begin{bmatrix}
+p_{x}=cos(\phi) * \rho\\
+p_{y}=sin(\phi) * \rho\\
+v_{x}=cos(\phi) * \dot\rho\\
+v_{y}=sin(\phi) * \dot\rho\\
+\end{bmatrix}
+$$
 * H/Hj: Measurement function
 $$H_{(Lidar)} = \begin{bmatrix}
 1 & 0 & 0 ​& 0\\
@@ -145,16 +161,23 @@ $$I = \begin{bmatrix}
 \end{bmatrix}$$
 
 ## 4.1. Measurement initialization
-As seen in section:
-* [Laser Measurements Part 4](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/252f0093-48ac-4122-aaae-f10214d30320)
+* Initialize Lidar measurement function H [14. Laser Measurements Part 4](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/252f0093-48ac-4122-aaae-f10214d30320)
+* Declare Radar measurement function Hj and leave it empty. Matrix has to be computed with measurements [21. EKF Algorithm Generalization](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/f3b2b918-00d5-4af0-9363-410d01b0a1a7)
+* Declare process noise/covariance matrix Q and leave it empty. Matrix has to be computed with time elapsed between measurements. [10. Process Covariance Matrix](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/1ac6e0ac-1809-4864-b58f-870d6bda9b25)
+* Measurement noise/covariance matrix R are already given. [13. Laser Measurements Part 3](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/f1cef488-6a2d-484d-a30d-8caa4fd082fd)
+* Declare estimate matrix x and leave it empty. Matrix has to be filled with first state and updated during measurement and prediction updates. [14. Laser Measurements Part 4](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/252f0093-48ac-4122-aaae-f10214d30320)
+* Declare uncertainty covariance matrix P and leave it empty. Matrix has to be updated with time elapsed between measurements.
+* Declare state transition matrix F and leave it empty. Matrix has to be updated during measurement update.
 ## 4.2. Prediction update
 ## 4.3. Measurement update
-## 4.4. Utility functions
-## 4.4.1 RMSE calculation 
-Taken from course
-## 4.4.1 Jacobian matrix
-Taken from course
 
+## 4.4. Utility functions
+## 4.4.1 Jacobian matrix
+Taken from course [20. Jacobian Matrix Part 2](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/08fc65c1-04d9-45d3-8a98-abf7bb072dc2)
+## 4.4.2 RMSE calculation 
+Taken from course [24. Evaluating KF Performance 2](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/c46a47f0-7cdc-4e49-b225-5134b438255a)
+
+---
 ## 5. Test
 ## 5.1. Compilation
 

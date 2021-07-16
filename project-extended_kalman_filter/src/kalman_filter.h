@@ -46,6 +46,12 @@ class KalmanFilter {
    */
   void UpdateEKF(const Eigen::VectorXd &z);
 
+  /**
+   * Common KF and EKF portion to update state once error matrix y is computed
+   * @param y 
+   */
+  void MeasurementUpdate(const Eigen::VectorXd &y);
+
   // state vector
   Eigen::VectorXd x_;
 
@@ -63,6 +69,9 @@ class KalmanFilter {
 
   // measurement covariance matrix
   Eigen::MatrixXd R_;
+
+  // identity matrix for uncertainty update
+  Eigen::MatrixXd I_;
 };
 
 #endif // KALMAN_FILTER_H_
