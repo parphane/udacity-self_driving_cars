@@ -75,7 +75,7 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   // Normalize the angle between -Pi and Pi
   // Inspired by https://stackoverflow.com/questions/11498169/dealing-with-angle-wrap-in-c-code
   // Get remainder (-2Pi<=h<=2Pi) from division by 2*Pi rad (360deg)
-  double y = remainder(y[1],2.0*M_PI);
+  y[1] = remainder(y[1],2.0*M_PI);
   // If angle is above Pi rad (180deg)
   if (y[1] > M_PI)
       // Remove 2Pi rad (360deg) to obtain -Pi<=h<=Pi domain angle
@@ -100,7 +100,6 @@ void KalmanFilter::MeasurementUpdate(const VectorXd &y) {
   // Estimate update
   x_ = x_ + (K * y);
   // Uncertainty update
-  int x_size = x_.size();  
   P_ = (I_ - K * H_) * P_;
 
 }

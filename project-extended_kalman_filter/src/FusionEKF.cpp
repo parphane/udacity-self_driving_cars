@@ -51,7 +51,7 @@ FusionEKF::FusionEKF() {
   // Using laser as default for init.
 
   // Estimate matrix, x and y position and, x and y velocity
-  VectorXd x = MatrixXd(4);
+  VectorXd x = VectorXd(4);
 
   // Uncertainty covariance matrix, x and y speed and position uncertainty
   MatrixXd P = MatrixXd(4, 4);
