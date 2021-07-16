@@ -67,8 +67,86 @@ The goals / steps of this project are the following:
     * Markdown side by side view: Ctrl+K V
 
 ## 4. Processing flow
+**TODO: ADD MATRIX DESCRIPTION AND EXAMPLE FOR LIDAR/RADAR**
+[Markdown mathematic formulas](https://csrgxtu.github.io/2015/03/20/Writing-Mathematic-Fomulars-in-Markdown/)
+* x: Estimate matrix, x and y position and, x and y velocity position and velocity
+$$x = \begin{bmatrix}
+​p_{x}\\
+​p_{y}\\
+​p_{x}\\
+​p_{y}\\
+\end{bmatrix}$$
+
+* P: Uncertainty covariance matrix, x and y speed and position uncertainty
+  * Lidar: Measures position, not speed
+  * Radar: Measures position and speed
+$$P_{Lidar} = \begin{bmatrix}
+1 & 0 & 0 ​& 0\\
+0 & 1 & 0 & 0 ​\\
+0 & 0 & 1000 & 0 ​\\
+0 & 0 & 0 & 1000 ​\\
+\end{bmatrix}$$
+
+$$P_{Radar} = \begin{bmatrix}
+1 & 0 & 0 ​& 0\\
+0 & 1 & 0 & 0 ​\\
+0 & 0 & 1 & 0 ​\\
+0 & 0 & 0 & 1 ​\\
+\end{bmatrix}$$
+
+* F/Fj: State transition matrix, used to update:
+  * Position x based on speed (we assume velocity is constant)
+  * Uncertainty covariance P to update estimation (update x based on speed)
+$$F = \begin{bmatrix}
+1 & 0 & Δt ​& 0\\
+0 & 1 & 0 & Δt ​\\
+0 & 0 & 1 & 0 ​\\
+0 & 0 & 0 & 1 ​\\
+\end{bmatrix}$$
+* u: Motion vector
+* Q: Process noise/covariance matrix
+$$Q = \begin{bmatrix}
+\frac{Δt^{4}}{4}\sigma^{2}_{ax} & 0 & \frac{Δt^{3}}{2}\sigma^{2}_{ax} ​& 0\\
+0 & \frac{Δt^{4}}{4}\sigma^{2}_{ay} & 0 & \frac{Δt^{3}}{2}\sigma^{2}_{ay} ​\\
+\frac{Δt^{3}}{2}\sigma^{2}_{ax} & 0 & Δt^{2}\sigma^{2}_{ax} & 0 ​\\
+0 & \frac{Δt^{3}}{2}\sigma^{2}_{ay} & 0 & Δt^{2}\sigma^{2}_{ay} ​\\
+\end{bmatrix}$$
+* z: Measurement
+* H/Hj: Measurement function
+$$H_{(Lidar)} = \begin{bmatrix}
+1 & 0 & 0 ​& 0\\
+0 & 1 & 0 & 0\\
+\end{bmatrix}$$
+
+$$H_{j (Radar)} = \begin{bmatrix}
+\frac{p_{x}}{\sqrt{p^{2}_{x}+p^{2}_{y}}} & \frac{p_{y}}{\sqrt{p^{2}_{x}+p^{2}_{y}}} & 0 ​& 0\\
+-\frac{p_{y}}{p^{2}_{x}+p^{2}_{y}} & \frac{p_{y}}{p^{2}_{x}+p^{2}_{y}} & 0 & 0\\
+\frac{p_{y}(v_{x}p_{y}-v_{y}p_{x})}{(p^{2}_{x}+p^{2}_{y})^{3/2}} & \frac{p_{x}(v_{y}p_{x}-v_{x}p_{y})}{(p^{2}_{x}+p^{2}_{y})^{3/2}} & \frac{p_{x}}{\sqrt{p^{2}_{x}+p^{2}_{y}}} & \frac{p_{y}}{\sqrt{p^{2}_{x}+p^{2}_{y}}}\\
+\end{bmatrix}$$
+
+* R: Measurement noise
+$$R_{Lidar} = \begin{bmatrix}
+0.0225 & 0\\
+0 & 0.0225\\
+\end{bmatrix}$$
+
+$$R_{Radar} = \begin{bmatrix}
+0.09 & 0 & 0\\
+0 & 0.0009 & 0\\
+0 & 0 & 0.09\\
+\end{bmatrix}$$
+
+* I: identity matrix
+$$I = \begin{bmatrix}
+1 & 0 & 0 & ...\\
+0 & 1 & 0 & ...\\
+0 & 0 & 1 & ...\\
+... & ... & ... & ...\\
+\end{bmatrix}$$
 
 ## 4.1. Measurement initialization
+As seen in section:
+* [Laser Measurements Part 4](https://classroom.udacity.com/nanodegrees/nd013/parts/168c60f1-cc92-450a-a91b-e427c326e6a7/modules/95d62426-4da9-49a6-9195-603e0f81d3f1/lessons/ec3054b9-9ffc-45c4-8523-485e2f7022da/concepts/252f0093-48ac-4122-aaae-f10214d30320)
 ## 4.2. Prediction update
 ## 4.3. Measurement update
 ## 4.4. Utility functions
