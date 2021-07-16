@@ -32,11 +32,38 @@ FusionEKF::FusionEKF() {
               0, 0.0009, 0,
               0, 0, 0.09;
 
-  /**
-   * TODO: Finish initializing the FusionEKF.
-   * TODO: Set the process and measurement noises
-   */
+  /** TODO: Finish initializing the FusionEKF. **/
+  // 14. Laser Measurements Part 4
+  H_laser_ << 1, 0, 0, 0,
+              0, 1, 0, 0;
+  
+  // Jacobian Matrix Part 1
+  Hj_ << 1, 1, 0, 0,
+         1, 1, 0, 0,
+         1, 1, 1, 1; 
 
+  /** TODO: Set the process and measurement noises **/
+  // Set the process noise/covariance matrix Q (10. Process Covariance Matrix)
+  // Values will be calculated during prediction update, depending on time
+  MatrixXd Q = MatrixXd(4, 4);
+
+  // Set measurement noise/covariance matrix R (13. Laser Measurements Part 3)
+  // Values will be calculated during measurement update, depending on sensor
+  // Already set above R_radar/R_laser
+  // Using laser as default for init.
+
+  // Estimate matrix, x and y position and speed
+  VectorXd x = MatrixXd(4);
+
+  // Uncertainty covariance matrix, x and y speed and position uncertainty
+  MatrixXd P = MatrixXd(4, 4);
+
+  // State transition matrix (9. State Prediction), used to update:
+  // - Position x based on speed (we assume velocity is constant)
+  // - Uncertainty covariance P to update estimation (update x based on speed)  
+  MatrixXd F = MatrixXd(4, 4);
+
+  ekf_.Init(x, P, F, H_laser_, R_laser_, Q);  
 
 }
 
@@ -54,12 +81,13 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * TODO: Initialize the state ekf_.x_ with the first measurement.
      * TODO: Create the covariance matrix.
      * You'll need to convert radar from polar to cartesian coordinates.
-     */
+     */   
 
     // first measurement
     cout << "EKF: " << endl;
-    ekf_.x_ = VectorXd(4);
-    ekf_.x_ << 1, 1, 1, 1;
+    // REMOVED: Already initialized in constructor
+    //ekf_.x_ = VectorXd(4);
+    //ekf_.x_ << 1, 1, 1, 1;
 
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
       // TODO: Convert radar from polar to cartesian coordinates 
