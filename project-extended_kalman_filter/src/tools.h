@@ -27,6 +27,11 @@ class Tools {
    */
   Eigen::MatrixXd CalculateJacobian(const Eigen::VectorXd& x_state);
 
+  /**
+   * A helper method to output debug messages.
+   */
+  void DebugMessage(const bool v, const char* msg);
+
 };
 
 #endif  // TOOLS_H_

@@ -2,6 +2,8 @@
 #define KALMAN_FILTER_H_
 
 #include "Eigen/Dense"
+#include "tools.h"
+#include "math.h"
 
 class KalmanFilter {
  public:
@@ -72,6 +74,11 @@ class KalmanFilter {
 
   // identity matrix for uncertainty update
   Eigen::MatrixXd I_;
+
+  // tool object used for debug messages
+  Tools tools;
+  // Activate or de-activate debugging
+  bool verbose_;
 };
 
 #endif // KALMAN_FILTER_H_

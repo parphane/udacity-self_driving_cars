@@ -1,5 +1,6 @@
 #include "kalman_filter.h"
-#include <math.h>
+#include "tools.h"
+#include "math.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -9,25 +10,29 @@ using Eigen::VectorXd;
  *   VectorXd or MatrixXd objects with zeros upon creation.
  */
 
-KalmanFilter::KalmanFilter() {}
+KalmanFilter::KalmanFilter() {
+  verbose_ = false;
+}
 
 KalmanFilter::~KalmanFilter() {}
 
 void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
-                        MatrixXd &H_in, MatrixXd &R_in, MatrixXd &Q_in) {
+                        MatrixXd &H_in, MatrixXd &R_in, MatrixXd &Q_in) {  
+  tools.DebugMessage(verbose_, "KalmanFilter: Initialize inputs");
   x_ = x_in;
   P_ = P_in;
   F_ = F_in;
   H_ = H_in;
   R_ = R_in;
   Q_ = Q_in;
-  I_ = MatrixXd::Identity(x_.rows(), x_.cols());
+  I_ = MatrixXd::Identity(P_.rows(), P_.cols());
 }
 
 void KalmanFilter::Predict() {
   /**
    * TODO: predict the state
    */
+  tools.DebugMessage(verbose_, "KalmanFilter: Predict");
   x_ = F_ * x_;
   P_ = F_ * P_ * F_.transpose() + Q_;
 }
@@ -36,6 +41,7 @@ void KalmanFilter::Update(const VectorXd &z) {
   /**
    * TODO: update the state by using Kalman Filter equations
    */
+  tools.DebugMessage(verbose_, "KalmanFilter: Update");
   // Initialize y
   VectorXd y = z - (H_ * x_);
 
@@ -46,23 +52,29 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   /**
    * TODO: update the state by using Extended Kalman Filter equations
    */
+  tools.DebugMessage(verbose_, "KalmanFilter: UpdateEKF");
   float px = x_[0];
   float py = x_[1];
   float vx = x_[2];
   float vy = x_[3];
   
-  // Compute rho phi rho_dot (18. Multivariate Taylor Series Expansion)
+  
   // Avoiding x=0 for atan
-  if (px < 0.0001) {
-    px = 0.0001;
+  // Creates anomalies when active
+  //if (px < 0.00007) {
+  //  px = 0.00007;
+  //}
+  
+  // Compute rho phi rho_dot (18. Multivariate Taylor Series Expansion)
+  float rho = sqrt(px*px + py*py);  
+  // Avoiding division by zero (using snippet from 20. Jacobian Matrix Part 2)
+  // 0.0001^2 = 0.00000001 then 0.00000001/2 = 0.000000005 then sqrt(0.000000005) = 0.00007
+  if (rho < 0.0001) {
+    px = 0.00007;
+    py = 0.00007;
+    rho = sqrt(px*px + py*py);
   } 
   float phi = atan2(py, px);
-  
-  float rho = sqrt(px*px + py*py);
-  // Avoiding division by zero (using snippet from 20. Jacobian Matrix Part 2)
-  if (rho < 0.0001) {
-    rho = 0.0001;
-  } 
   float rho_dot = (px*vx + py*vy) / rho;
   
   // Initialize h(x_) (18. Multivariate Taylor Series Expansion)
@@ -89,7 +101,7 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
 }
 
 void KalmanFilter::MeasurementUpdate(const VectorXd &y) {
-
+  tools.DebugMessage(verbose_, "KalmanFilter: MeasurementUpdate");
   // Compute Ht only once
   MatrixXd Ht = H_.transpose();
   // Perform final operations of measurement update (21. EKF Algorithm Generalization)    

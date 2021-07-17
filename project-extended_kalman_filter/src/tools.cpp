@@ -20,7 +20,7 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
   // Check the validity of the following inputs:
   //  * the estimation vector size should not be zero
-  int n = estimations.size();
+  unsigned int n = estimations.size();
   if(n == 0) {
       cout << "Estimations vector is empty" << endl;
       return rmse;
@@ -46,6 +46,8 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
   // Calculate the squared root
   rmse = rmse.array().sqrt();
+  
+  return rmse;
 }
 
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
@@ -75,4 +77,10 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
       py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
 
   return Hj;
+}
+
+void Tools::DebugMessage(const bool v, const char* msg) {
+  if(v) {
+    cout << msg << endl;
+  }
 }
