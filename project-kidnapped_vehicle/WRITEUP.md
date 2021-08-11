@@ -2,94 +2,35 @@
 
 ---
 
-## 1. Project: **Advanced lane finding** 
+## 1. Project: **Kidnapped Vehicle** 
 
 The goals / steps of this project are the following:
 
-* Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-* Apply a distortion correction to raw images.
-* Use color transforms, gradients, etc., to create a thresholded binary image.
-* Apply a perspective transform to rectify binary image ("birds-eye view").
-* Detect lane pixels and fit to find the lane boundary.
-* Determine the curvature of the lane and vehicle position with respect to center.
-* Warp the detected lane boundaries back onto the original image.
-* Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
+* Implement a particle filter
+* Localize the vehicle within the desired accuracy
+* Run within the specified time of 100 secinds 
 
-Note: Please refer to the Jupyter notebook for more detail and code on each section
-
-[Rubric](https://review.udacity.com/#!/rubrics/571/view) points to be adressed for this writeup
+[Rubric](https://review.udacity.com/#!/rubrics/1965/view) points to be adressed for this writeup
 
 [//]: # (Image References)
 
 [image1]: ./output_images/display_chessboard_corners.png "Display chessboard cormers"
 [image2]: ./output_images/undistorted.png "Undistorted image"
-[image3]: ./output_images/undistorted_bridge.png "Undistorted bridge"
-[image4]: ./output_images/blurred.png "Blurred image"
-[image5]: ./output_images/dark_gray_binary.png "Dark gray filter"
-[image6]: ./output_images/sx_sy_mag_dir_binary.png "Sobel X Y, Mag Dir filters"
-[image7]: ./output_images/gradient_binary.png "Gradient combined filter"
-[image8]: ./output_images/h_l_s_binary.png "H, L, S filter"
-[image9]: ./output_images/hls_binary.png "HLS combined filter"
-[image10]: ./output_images/l_u_v_binary.png "L U V filter"
-[image11]: ./output_images/luv_binary.png "LUV combined filter"
-[image12]: ./output_images/l_a_b_binary.png "L A B filter"
-[image13]: ./output_images/lab_binary.png "LAB combined filter"
-[image14]: ./output_images/color_binary.png "Color combined filter"
-[image15]: ./output_images/combined_binary.png "Combined gradient and color filter"
-[image16]: ./output_images/zone_of_interest.png "Zone of interest"
-[image17]: ./output_images/warped_zoi.png "Warped zone of interest"
-[image18]: ./output_images/warped_zoi_straight.png "Straight zone of interest"
-[image19]: ./output_images/initial_histogram.png "Histogram L/R lane start"
-[image20]: ./output_images/identified_lanes.png "Warped identified lanes"
-[image21]: ./output_images/lane_curvature.png "Lane curvature"
-[image22]: ./output_images/weighted_lanes.png "Overlay on image"
-[image23]: ./output_images/project_video_overlay.png "Video project information overlay"
-[image24]: ./output_images/challenge_video_overlay.png "Video challenge information overlay"
-
 ---
 
 ## 2. Libraries import & Constants definition  
 
-This section gathers imports and constants for the notebook.
+This section gathers imports and constants for the project.
 
-Tune the following:
-* RUN_TEST_IMG = True
-  * Activate the notebook single image processing / display
-* RUN_TEST_VIDEO = True
-  * Activate the notebook video processing / display
-* RUN_TEST_VIDEO_HARD = False
-  * Activate the notebook harder video processing / display (Spoiler alert: It might be disappointing!)
+* Source https://github.com/udacity/CarND-Kidnapped-Vehicle-Project/
+* "using std::normal_distribution;" requires "#include <random>"
+*
+*
 
 ---
 
 ## 3. Camera calibration
 
-Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
-
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
-
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result:
-
-**Calibration preparation and algorithm explanation**
-  * objectPoints are reference points in "world coordinates" that never "move" (because the reference is the pattern plan)
-  * objectPoints coordinates are based on the pattern plan reference (0,0,0) point and a reference length
-    * Top left corner of the chessboard is taken as reference in most tutorials
-    * Reference length is "a square's side length" for the chessboard pattern
-    * Z-coordinates are always 0 because the pattern is planar and the chessboard points depth do not change in the chessboard plan
-  * objectPoints coordinates are put in relation to their imagePoints pixel coordinates counterpart during the camera calibration
-  * cameraCalibration estimates the extrinsic ([R|t] matrix) parameters for camera motion around the static scene
-  * cameraCalibration estimates the intrinsic parameters for focal length (fx, fy) and image center (cx, cy)
-  * cameraCalibration tries to minimize the runs the re-projection error, that is, the total sum of squared distances between the observed feature/image points and the projected object points
-  * **Note**<br/>
-    * Currently, initialization of intrinsic parameters (when CV_CALIB_USE_INTRINSIC_GUESS is not set) is only implemented for planar calibration patterns (where Z-coordinates of the object points must be all zeros). 3D calibration rigs can also be used as long as initial cameraMatrix is provided.<br/>
-    * So if not providing camera focal length (fx, fy) and image center (cx, cy) intrinsic parameters, you have to use a planar (Z=0) calibration pattern.<br/>
-    * Link to own comment, result of digging around https://stackoverflow.com/a/63432041/685996
-
-**Comment**<br/>
-Calibration image 1, 4 and 5 cannot be processed because the full chess is not visible.<br/>
-Tried to reduce height by one for those images specifically but still did not work.
 
 ### 3.2. Display chessboard corners
 
