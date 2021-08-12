@@ -118,9 +118,6 @@ class ParticleFilter {
   
   // Flag, if filter is initialized
   bool is_initialized;
-  
-  // Vector of weights of all particles
-  std::vector<double> weights; 
 
   // Random engine for Gaussian
   std::default_random_engine gen;
