@@ -23,7 +23,7 @@ using std::vector;
 
 using std::normal_distribution;
 
-#define MIN_YAW 0.00001
+#define MIN_YAW 0.0001
 #define NUM_PARTICLES 1000
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
@@ -59,12 +59,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         vector<int>(),
         vector<double>(),
         vector<double>()
-      };
+        }
     );
   }
 
   // Flag initialized
-  initialized = true;
+  is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], 
@@ -82,16 +82,16 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   normal_distribution<double> gen_y(0, std_pos[1]);
   normal_distribution<double> gen_theta(0, std_pos[2]);
 
-  for (auto &prt : particles) {
+  for (Particle &prt : particles) {
     // Prevent 0 division with 0 yaw_rate
-    if(fabs(yaw_rate) >  MIN_YAW) {
-      prt.x = prt.x + (velocity/yaw_rate) * (sin(prt.theta+(yaw_rate* delta_t))−sin(prt.theta​));
-      prt.y = prt.y + (velocity/yaw_rate) * (cos(prt.theta) - cos(prt.theta+(yaw_rate*delta_t)));
+    if(fabs(yaw_rate) > MIN_YAW) {
+      prt.x = prt.x + (velocity/yaw_rate) * (sin(prt.theta + (yaw_rate * delta_t)) - sin(prt.theta));
+      prt.y = prt.y + (velocity/yaw_rate) * (cos(prt.theta) - cos(prt.theta + (yaw_rate * delta_t)));
       prt.theta = prt.theta + (yaw_rate*delta_t);
     } else {
       // Simple right angle triangle adjacent or opposite side computation, ratioed by velocity
-      prt.x += velocity * delta_t * cos(theta);
-      prt.y += velocity * delta_t * sin(theta);
+      prt.x += velocity * delta_t * cos(prt.theta);
+      prt.y += velocity * delta_t * sin(prt.theta);
       // Yaw unchanged
     }
 
@@ -117,23 +117,19 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
 
   // Declare variables 
   double min_dist;
-  double rel_x;
-  double rel_y;
   double rel_dst;
 
   // For each observed measurement
   // (sensed by vehicle, as seen from particle POV and, transformed to map coordinates)
   for (LandmarkObs &obs : observations) {
     // Initialize min distance to infinite
-    min_dist = math.INFINITY
+    min_dist = INFINITY;
 
     // Loop through predicted measurements ()
     for (LandmarkObs &prd : predicted) {
 
       // Compute distance between observed and predicted
-      rel_x = (obs.x - prd.x);
-      rel_y = (obs.x - prd.x);
-      rel_dst = sqrt(rel_x*rel_x + rel_y*rel_y);
+      rel_dst = dist(obs.x, obs.y, prd.x, prd.y);
 
       // Update closest ID
       if(rel_dst < min_dist) {
@@ -161,11 +157,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-  double rel_x;
-  double rel_y;
-  double rel_dst_2;
-  // Square sensor range to save square root operation for eachparticle/landmark tuple
-  double sensor_range_2 = sensor_range * sensor_range;
+  double rel_dst;
   // Landmark Gaussian noise
   double lndmrk_std_x = std_landmark[0];
   double lndmrk_std_y = std_landmark[1];
@@ -177,60 +169,60 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     vector<LandmarkObs> predictions;
 
     // Find landmarks in range of sensor
-    for (Map::single_landmark_s &sng_lndmrk : map_landmarks.landmark_list) {
+    std::vector<Map::single_landmark_s> landmark_list = map_landmarks.landmark_list;
+    for (Map::single_landmark_s &sng_lndmrk : landmark_list) {
 
       // Compute relative distance
-      rel_x = (prt.x - sng_lndmrk.x_f);
-      rel_y = (prt.x - sng_lndmrk.y_f);
-      rel_dst_2 = rel_x*rel_x + rel_y*rel_y);
+      rel_dst = dist(prt.x, prt.y, sng_lndmrk.x_f, sng_lndmrk.y_f);
 
       // Add to prediction if in range
-      if (rel_dst_2 < sensor_range_2) {
+      if (rel_dst < sensor_range) {
         // add prediction to vector
         predictions.push_back(LandmarkObs{ sng_lndmrk.id_i, sng_lndmrk.x_f, sng_lndmrk.y_f });
       }
-
     } 
 
     // Map based observations 
     vector<LandmarkObs> map_observations;
 
     // For each observation
-    for (LandmarkObs &obs : observations) {
+    for (LandmarkObs obs : observations) {
       // Transform into map coordinates
-      double x_obs = prt.x + (cos(prt.theta) * obs.x_f) - (sin(prt.theta) * obs.y_f);
-      double y_obs = prt.y + (sin(prt.theta) * obs.x_f) + (cos(prt.theta) * obs.y_f);
+      double x_obs = prt.x + (cos(prt.theta) * obs.x) - (sin(prt.theta) * obs.y);
+      double y_obs = prt.y + (sin(prt.theta) * obs.x) + (cos(prt.theta) * obs.y);
       map_observations.push_back(LandmarkObs{ obs.id, x_obs, y_obs});
     }
 
     // Locate closest landmark to observation
-    // TODO: Using as part of project but not efficient because we could just lookup for closest during weighting phase and save for loops
+    /** TODO: Using as part of project but not efficient because we could just lookup for closest during weighting phase and save for loops */
+    // map_observations ID will point to closest predictions ID
     dataAssociation(predictions, map_observations);
 
     // Compute weight of particle
     // Reset particle weight
-    prt.weight = 1;
+    prt.weight = 1.0;
     
     // For each map coordinates observation
     for (LandmarkObs &map_obs : map_observations) {
 
       // Get the closest landmark
-      LandmarkObs &closest;
+      LandmarkObs *closest = NULL;
       for (LandmarkObs &prd : predictions) {
         if (prd.id == map_obs.id) {
-          closest = prd;
+          closest = &prd;
           break;
         }
       }
 
       // Compute weight
-      // Obs --> Closest predicted
-      double xomxl = (map_obs.x - closest.x_f);
-      double yomyl = (map_obs.y - closest.y_f);
-      
-      // Compute weight
-      double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
-      prt.weight = prt.weight * obs_weight;
+      if(closest != NULL) {
+        // xoxml: X observed minus X landmark, // yoyml: Y observed minus Y landmark
+        double xomxl = (map_obs.x - closest->x);
+        double yomyl = (map_obs.y - closest->y);
+        double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
+        prt.weight = prt.weight * obs_weight;
+      }
+
     }
   }
 }
@@ -255,9 +247,9 @@ void ParticleFilter::resample() {
   
   // Create generators
   // Uniform random distribution between 0 and max ID of particles
-  uniform_int_distribution<int> uni_int_dist(0, num_particles-1);
+  std::uniform_int_distribution<int> uni_int_dist(0, num_particles-1);
   // Uniform random distribution between 0.0 and maximum weight
-  uniform_real_distribution<double> uni_dbl_dist(0.0, max_weight);
+  std::uniform_real_distribution<double> uni_dbl_dist(0.0, max_weight);
 
   // Generate first index
   int  index = uni_int_dist(gen);
