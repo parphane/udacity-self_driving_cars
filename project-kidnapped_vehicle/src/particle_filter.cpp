@@ -24,6 +24,7 @@ using std::vector;
 using std::normal_distribution;
 
 #define MIN_YAW 0.0001
+// Lesson 4: Particle filters - 12. Creating particles
 #define NUM_PARTICLES 1000
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
@@ -43,6 +44,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * TODO: Add random Gaussian noise to each particle.
   */
 
+  // Lesson 5: Implementation of a particle filter - 5. Program Gaussian sampling: Code
   // Initialize generators once
   normal_distribution<double> gen_x(x, std[0]);
   normal_distribution<double> gen_y(y, std[1]);
@@ -82,6 +84,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   normal_distribution<double> gen_y(0, std_pos[1]);
   normal_distribution<double> gen_theta(0, std_pos[2]);
 
+  // // Lesson 5: Implementation of a particle filter - 8. Calculate Prediction Step Quiz
+  // For each particle, calculate prediction
   for (Particle &prt : particles) {
     // Prevent 0 division with 0 yaw_rate
     if(fabs(yaw_rate) > MIN_YAW) {
@@ -125,7 +129,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
     // Initialize min distance to infinite
     min_dist = INFINITY;
 
-    // Loop through predicted measurements ()
+    // Loop through predicted measurements
     for (LandmarkObs &prd : predicted) {
 
       // Compute distance between observed and predicted
@@ -170,6 +174,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
     // Find landmarks in range of sensor
     std::vector<Map::single_landmark_s> landmark_list = map_landmarks.landmark_list;
+    
     for (Map::single_landmark_s &sng_lndmrk : landmark_list) {
 
       // Compute relative distance
@@ -180,50 +185,53 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         // add prediction to vector
         predictions.push_back(LandmarkObs{ sng_lndmrk.id_i, sng_lndmrk.x_f, sng_lndmrk.y_f });
       }
+      
     } 
 
-    // Map based observations 
-    vector<LandmarkObs> map_observations;
-
-    // For each observation
-    for (LandmarkObs obs : observations) {
-      // Transform into map coordinates
-      double x_obs = prt.x + (cos(prt.theta) * obs.x) - (sin(prt.theta) * obs.y);
-      double y_obs = prt.y + (sin(prt.theta) * obs.x) + (cos(prt.theta) * obs.y);
-      map_observations.push_back(LandmarkObs{ obs.id, x_obs, y_obs});
-    }
-
-    // Locate closest landmark to observation
-    /** TODO: Using as part of project but not efficient because we could just lookup for closest during weighting phase and save for loops */
-    // map_observations ID will point to closest predictions ID
-    dataAssociation(predictions, map_observations);
-
-    // Compute weight of particle
     // Reset particle weight
     prt.weight = 1.0;
     
-    // For each map coordinates observation
-    for (LandmarkObs &map_obs : map_observations) {
+    // For each observation
+    for (LandmarkObs obs : observations) {
+      // Lesson 5: Implementation of a particle filter - 16. Quiz: Landmarks
+      // Transform into map coordinates
+      // (As if sensed by vehicle at particle POV and, transformed to map coordinates)
+      double x_map = prt.x + (cos(prt.theta) * obs.x) - (sin(prt.theta) * obs.y);
+      double y_map = prt.y + (sin(prt.theta) * obs.x) + (cos(prt.theta) * obs.y);
 
-      // Get the closest landmark
+      // Lesson 5: Implementation of a particle filter - 18. Quiz: Association
+      // Locate closest landmark to observation      
+      // Initialize pointer to closest landmark
       LandmarkObs *closest = NULL;
+      // Initialize min distance to infinite
+      double min_dist = INFINITY;
+      
+      // Loop through predicted measurements
       for (LandmarkObs &prd : predictions) {
-        if (prd.id == map_obs.id) {
+
+        // Compute distance between observed and predicted
+        rel_dst = dist(x_map, y_map, prd.x, prd.y);
+
+        // Update closest landmark data
+        if(rel_dst < min_dist) {
+          min_dist = rel_dst;
           closest = &prd;
-          break;
         }
       }
-
-      // Compute weight
-      if(closest != NULL) {
-        // xoxml: X observed minus X landmark, // yoyml: Y observed minus Y landmark
-        double xomxl = (map_obs.x - closest->x);
-        double yomyl = (map_obs.y - closest->y);
-        double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
-        prt.weight = prt.weight * obs_weight;
-      }
-
+      
+      // Lesson 5: Implementation of a particle filter - 20. Particle Weights
+      // Compute weight of particle
+      // xoxml: X observed minus X landmark, // yoyml: Y observed minus Y landmark
+      double xomxl = (x_map - closest->x);
+      double yomyl = (y_map - closest->y);
+      double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
+      prt.weight = prt.weight * obs_weight;
+      break;
+      
     }
+
+    // Replaced by code above
+    // dataAssociation(predictions, map_observations);
   }
 }
 
@@ -237,6 +245,7 @@ void ParticleFilter::resample() {
 
   vector<Particle> resample_prt;
 
+  // Lesson 4: Particle filters - 15. Resampling
   // For each particle, find max weight
   double max_weight = 0;
   for (Particle &prt : particles) {
@@ -254,7 +263,8 @@ void ParticleFilter::resample() {
   // Generate first index
   int  index = uni_int_dist(gen);
 
-  // Resample wheel (Particle Filters - 20. Resampling wheel)
+  // Lesson 4: Particle filters - 20. Resampling wheel
+  // Resample wheel
   double beta = 0.0;
   for (int i = 0; i < num_particles; i++) {
     // Randomly add weight to beta 
