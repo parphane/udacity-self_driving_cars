@@ -32,6 +32,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // DEFINE CONSTANTS
   /** TODO: Set the number of particles */
   num_particles = NUM_PARTICLES; // Number of particles
+  particles.resize(NUM_PARTICLES);
 
   /**
    * NOTE: Consult particle_filter.h for more information about this method 
@@ -51,8 +52,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   normal_distribution<double> gen_theta(theta, std[2]);
 
   for(int i = 0; i<num_particles; i++) {
-    particles.push_back(
-      Particle {
+    particles[i] = Particle {
         i,
         gen_x(gen),
         gen_y(gen),
@@ -61,8 +61,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         vector<int>(),
         vector<double>(),
         vector<double>()
-        }
-    );
+        };
   }
 
   // Flag initialized
@@ -89,13 +88,16 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   for (Particle &prt : particles) {
     // Prevent 0 division with 0 yaw_rate
     if(fabs(yaw_rate) > MIN_YAW) {
-      prt.x = prt.x + (velocity/yaw_rate) * (sin(prt.theta + (yaw_rate * delta_t)) - sin(prt.theta));
-      prt.y = prt.y + (velocity/yaw_rate) * (cos(prt.theta) - cos(prt.theta + (yaw_rate * delta_t)));
-      prt.theta = prt.theta + (yaw_rate*delta_t);
+      double yrtdt = yaw_rate * delta_t;
+      double voyr = velocity/yaw_rate;
+      prt.x = prt.x + voyr * (sin(prt.theta + (yrtdt)) - sin(prt.theta));
+      prt.y = prt.y + voyr * (cos(prt.theta) - cos(prt.theta + (yrtdt)));
+      prt.theta = prt.theta + yrtdt;
     } else {
       // Simple right angle triangle adjacent or opposite side computation, ratioed by velocity
-      prt.x += velocity * delta_t * cos(prt.theta);
-      prt.y += velocity * delta_t * sin(prt.theta);
+      double vtdt = velocity * delta_t;
+      prt.x += vtdt * cos(prt.theta);
+      prt.y += vtdt * sin(prt.theta);
       // Yaw unchanged
     }
 
@@ -161,32 +163,26 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-  double rel_dst;
   // Landmark Gaussian noise
   double lndmrk_std_x = std_landmark[0];
   double lndmrk_std_y = std_landmark[1];
 
+  double sensor_range_2 = sensor_range * sensor_range;
+
+  // Initialize variables outside of loops  
+  double cost = 0;
+  double sint = 0;
+  double x_map = 0;
+  double y_map = 0;  
+  double rel_dst_prt_lnd_2 = 0;
+  double rel_dst_obs_lnd_2 = 0;
+  double min_dist_2 = 0;
+  //Map::single_landmark_s *closest = NULL; // Cannot use because of float/double precision issue
+  LandmarkObs closest_lnd = { 0,0,0 };
+
+
   // For each particle, find landmarks within sensor range
   for (Particle &prt : particles) {
-
-    // Map landmark locations within particle centric sensor range 
-    vector<LandmarkObs> predictions;
-
-    // Find landmarks in range of sensor
-    std::vector<Map::single_landmark_s> landmark_list = map_landmarks.landmark_list;
-    
-    for (Map::single_landmark_s &sng_lndmrk : landmark_list) {
-
-      // Compute relative distance
-      rel_dst = dist(prt.x, prt.y, sng_lndmrk.x_f, sng_lndmrk.y_f);
-
-      // Add to prediction if in range
-      if (rel_dst < sensor_range) {
-        // add prediction to vector
-        predictions.push_back(LandmarkObs{ sng_lndmrk.id_i, sng_lndmrk.x_f, sng_lndmrk.y_f });
-      }
-      
-    } 
 
     // Reset particle weight
     prt.weight = 1.0;
@@ -196,38 +192,56 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // Lesson 5: Implementation of a particle filter - 16. Quiz: Landmarks
       // Transform into map coordinates
       // (As if sensed by vehicle at particle POV and, transformed to map coordinates)
-      double x_map = prt.x + (cos(prt.theta) * obs.x) - (sin(prt.theta) * obs.y);
-      double y_map = prt.y + (sin(prt.theta) * obs.x) + (cos(prt.theta) * obs.y);
+      cost = cos(prt.theta);
+      sint = sin(prt.theta);
+      x_map = prt.x + (cost * obs.x) - (sint * obs.y);
+      y_map = prt.y + (sint * obs.x) + (cost * obs.y);
 
       // Lesson 5: Implementation of a particle filter - 18. Quiz: Association
       // Locate closest landmark to observation      
       // Initialize pointer to closest landmark
-      LandmarkObs *closest = NULL;
+      //*closest = NULL;
+      closest_lnd.id = -1;
+      closest_lnd.x = 0;
+      closest_lnd.y = 0;
       // Initialize min distance to infinite
-      double min_dist = INFINITY;
+      // Using square of distance to avoid using costly square root computation
+      // If |a| > |b| then |a|^2 > |b|^2
+      min_dist_2 = INFINITY;
       
-      // Loop through predicted measurements
-      for (LandmarkObs &prd : predictions) {
+      // Find landmarks in range of particle sensor and closest to the observation    
+      for (Map::single_landmark_s sng_lndmrk : map_landmarks.landmark_list) {
 
-        // Compute distance between observed and predicted
-        rel_dst = dist(x_map, y_map, prd.x, prd.y);
+        // Compute relative distance between particle and landmark 
+        rel_dst_prt_lnd_2 = abs(((double)(sng_lndmrk.x_f) - prt.x) * ((double)(sng_lndmrk.x_f) - prt.x) + ((double)(sng_lndmrk.y_f) - prt.y) * ((double)(sng_lndmrk.y_f) - prt.y));
 
-        // Update closest landmark data
-        if(rel_dst < min_dist) {
-          min_dist = rel_dst;
-          closest = &prd;
-        }
-      }
+        // Verify if landmark is in range of particle sensor
+        if (rel_dst_prt_lnd_2 < sensor_range_2) {
+
+          // Compute relative distance between observation and landmark 
+          rel_dst_obs_lnd_2 = abs(((double)(sng_lndmrk.x_f) - x_map) * ((double)(sng_lndmrk.x_f) - x_map) + ((double)(sng_lndmrk.y_f) - y_map) * ((double)(sng_lndmrk.y_f) - y_map));
+
+          // Verify if observation is closest to landmark
+          if (rel_dst_obs_lnd_2 < min_dist_2) {
+            // Update closest landmark data
+            min_dist_2 = rel_dst_obs_lnd_2;
+            //closest = &sng_lndmrk;
+            closest_lnd.id = sng_lndmrk.id_i;
+            closest_lnd.x = sng_lndmrk.x_f;
+            closest_lnd.y = sng_lndmrk.y_f;
+          }
+        }        
+      } 
       
       // Lesson 5: Implementation of a particle filter - 20. Particle Weights
       // Compute weight of particle
       // xoxml: X observed minus X landmark, // yoyml: Y observed minus Y landmark
-      double xomxl = (x_map - closest->x);
-      double yomyl = (y_map - closest->y);
+      //double xomxl = (double)(x_map - closest->x_f);
+      //double yomyl = (double)(y_map - closest->y_f);
+      double xomxl = x_map - closest_lnd.x;
+      double yomyl = y_map - closest_lnd.y;
       double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
       prt.weight = prt.weight * obs_weight;
-      break;
-      
     }
 
     // Replaced by code above

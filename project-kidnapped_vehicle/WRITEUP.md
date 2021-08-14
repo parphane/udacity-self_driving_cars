@@ -67,7 +67,7 @@ This section gathers imports and constants for the project.
 
 Execution: 
 * Excessive X,Y error: Fixed manual distance calculation using dist helper function
-* Excessive duration: Updated particle numbers and optimized for loops
+* Excessive duration: Updated particle numbers, optimized for loops and comparisons
 
 Optimize code: 
 * Base working code: Failure (around 0.1 x/y 0.03 yaw error 130s)
@@ -75,6 +75,11 @@ Optimize code:
 * Reduce number of particles to 500: Success (around 0.1 x/y 0.03 yaw error 70s)
 * Nested for loops (around 0.3 x/y 0.03 yaw error 98s)
   * Don't know why we lost in precision... might be RNG... to investigate
+* Remove forgotten "break;" in update weights: Failure (around 0.1 x/y 0.003 yaw error 116s)
+* Add predictions to observations loop: Failure (around 0.1 x/y 0.003 yaw error 130s)
+* Add pointer to map single_landmark_s: Failure precision issue, cannot fix
+* Avoid using square roots and recomputing sin, cos or other operations: Failure (around 0.1 x/y 0.003 yaw error 110s)
+
 
 ## 4.2. Final comment
 
@@ -83,4 +88,3 @@ This was a difficult exercice and I spent more than 3 weeks on it:
 
 ## 5. Wayforward
 More optimization could be brought to this algorithm:
-* Add predictions to observations loop
