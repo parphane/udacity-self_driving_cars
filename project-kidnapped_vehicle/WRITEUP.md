@@ -8,22 +8,21 @@ The goals / steps of this project are the following:
 
 * Implement a particle filter
 * Localize the vehicle within the desired accuracy
-* Run within the specified time of 100 secinds 
+* Run within the specified time of 100 seconds 
 
 [Rubric](https://review.udacity.com/#!/rubrics/1965/view) points to be adressed for this writeup
 
 [//]: # (Image References)
 
-[image1]: ./output_images/success.png "Display chessboard cormers"
-[image2]: ./output_images/undistorted.png "Undistorted image"
+[image1]: ./output_images/success.png "Final successful run"
+
 ---
 
 ## 2. Libraries import & Constants definition  
 
 This section gathers imports and constants for the project.
-
 * Source https://github.com/udacity/CarND-Kidnapped-Vehicle-Project/
-* "using std::normal_distribution;" requires "#include <random>"
+* "using std::normal_distribution;" requires "#include <random>" 
 
 ---
 
@@ -54,11 +53,6 @@ This section gathers imports and constants for the project.
       * Add current index particle to new sample
       * Repeat resample wheel until desired number of particle has been created
 
-
-### 3.1. Display chessboard corners
-
-![alt text][image1]
-
 ---
 
 ## 4. Report
@@ -79,12 +73,10 @@ Optimize code:
 * Add predictions to observations loop: Failure (around 0.1 x/y 0.003 yaw error 130s)
 * Add pointer to map single_landmark_s: Failure precision issue, cannot fix
 * Avoid using square roots and recomputing sin, cos or other operations: Failure (around 0.1 x/y 0.003 yaw error 110s)
-
+* Tried to use vector index and pointers: Failure (around 0.1 x/y 0.003 yaw error 105s)
+* Revert ans change to 900 particles: Success (around 0.1 x/y 0.003 yaw error 105s)
 
 ## 4.2. Final comment
 
-This was a difficult exercice and I spent more than 3 weeks on it:
-- Coming up with the first version of the full pipeline
-
-## 5. Wayforward
-More optimization could be brought to this algorithm:
+The optimization task was challenging and led to a huge decrease of the number of lines of code.
+There must be other optimizations that I do not know to reach below 100s with 1000 particles.

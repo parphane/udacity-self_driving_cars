@@ -25,7 +25,7 @@ using std::normal_distribution;
 
 #define MIN_YAW 0.0001
 // Lesson 4: Particle filters - 12. Creating particles
-#define NUM_PARTICLES 1000
+#define NUM_PARTICLES 750
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
@@ -177,7 +177,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   double rel_dst_prt_lnd_2 = 0;
   double rel_dst_obs_lnd_2 = 0;
   double min_dist_2 = 0;
-  //Map::single_landmark_s *closest = NULL; // Cannot use because of float/double precision issue
+  //Map::single_landmark_s *closest = NULL; // Not using: Float/double precision issue at runtime
   LandmarkObs closest_lnd = { 0,0,0 };
 
 
@@ -200,7 +200,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // Lesson 5: Implementation of a particle filter - 18. Quiz: Association
       // Locate closest landmark to observation      
       // Initialize pointer to closest landmark
-      //*closest = NULL;
+      //*closest = NULL; // Not using: Float/double precision issue at runtime
       closest_lnd.id = -1;
       closest_lnd.x = 0;
       closest_lnd.y = 0;
@@ -236,8 +236,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // Lesson 5: Implementation of a particle filter - 20. Particle Weights
       // Compute weight of particle
       // xoxml: X observed minus X landmark, // yoyml: Y observed minus Y landmark
-      //double xomxl = (double)(x_map - closest->x_f);
-      //double yomyl = (double)(y_map - closest->y_f);
+      //double xomxl = (double)(x_map - closest->x_f); // Not using: Float/double precision issue at runtime
+      //double yomyl = (double)(y_map - closest->y_f); // Not using: Float/double precision issue at runtime
       double xomxl = x_map - closest_lnd.x;
       double yomyl = y_map - closest_lnd.y;
       double obs_weight = exp(-(((xomxl*xomxl)/(2*lndmrk_std_x*lndmrk_std_x)) + ((yomyl*yomyl)/(2*lndmrk_std_y*lndmrk_std_y)))) / (2*M_PI*lndmrk_std_x*lndmrk_std_y);
