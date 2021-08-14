@@ -74,7 +74,7 @@ Optimize code:
 * Add pointer to map single_landmark_s: Failure precision issue, cannot fix
 * Avoid using square roots and recomputing sin, cos or other operations: Failure (around 0.1 x/y 0.003 yaw error 110s)
 * Tried to use vector index and pointers: Failure (around 0.1 x/y 0.003 yaw error 105s)
-* Revert ans change to 750 particles: Success (around 0.1 x/y 0.003 yaw error 105s)
+* Revert ans change to 750 particles: Success (around 0.1 x/y 0.003 yaw error 98s)
 
 ## 4.2. Final comment
 
