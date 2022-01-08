@@ -7,6 +7,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -93,11 +94,66 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
+         
+          /** ********************************************************************
+              TODO: define a path made up of (x,y) points that the car will visit
+              sequentially every .02 seconds
+              ******************************************************************** */
+          // Start lane
+          //double lane = 2.0;
+          
+          // Targets
+          //double limit_speed_margin = 0.5; // MPH
+          //double limit_speed = 50.0 - limit_speed_margin; // MPH
+                                
+          // Distance between points (0.5m / 20ms = 25 m/s)                   
+          double target_car_speed = 50.0/(0.00062137*60.0*60.0); // MPH to M/S
+          double target_dist_inc = target_car_speed/50.0; // M/S to M/ 20 MS (20/1000)
+          
+          double dist_inc_max_delta = 10.0 / (50.0); // 10 M/S2 20/1000 
+          
+          double car_speed_mps = car_speed/(0.00062137*60.0*60.0); // MPH to M/S
 
+          double dist_inc = 0; // M/S to M/ 20 MS (20/1000)
+          if (previous_path_x.size() < 2) {
+            dist_inc = car_speed/50.0; // M/S to M/ 20 MS (20/1000)
+          } else {
+            vector<double> prev_sd1 = getFrenet(previous_path_x[1], previous_path_y[1], car_yaw, map_waypoints_x, map_waypoints_y);
+            vector<double> prev_sd2 = getFrenet(previous_path_x[2], previous_path_y[2], car_yaw, map_waypoints_x, map_waypoints_y);
+            dist_inc = prev_sd2[0] - prev_sd1[0];
+          }
+          
+          std::cout << "Target dist inc:" << target_dist_inc << " - Max dist inc:" << dist_inc_max_delta << std::endl;
+          std::cout << "Speed:" << car_speed << " - Speed MPS:" << car_speed_mps << " - Dist inc:" << dist_inc << "\r\n" << std::endl;              
+          
+          for(int i = 0; i < 50; i++) {
+            if(dist_inc < target_dist_inc) {
+              dist_inc = dist_inc + dist_inc_max_delta;
+              
+              if(dist_inc > target_dist_inc) {
+                dist_inc = target_dist_inc;
+              }
+              
+            } else if(dist_inc > target_dist_inc) {
+              
+              dist_inc = dist_inc + dist_inc_max_delta;
+                            
+              if(dist_inc < target_dist_inc) {
+                dist_inc = target_dist_inc;
+              }
+            } 
+            double next_s = car_s + (i+1) * dist_inc;
+            double next_d = 6.0;
+            
+            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            
+            next_x_vals.push_back(next_xy[0]);
+            next_y_vals.push_back(next_xy[1]);
+          }
+                    
+          /** ********************************************************************
+              TODO: END
+              ******************************************************************** */
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
