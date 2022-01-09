@@ -8,6 +8,14 @@ Design a path planner that is able to create smooth, safe paths for the car to f
 
 ## Setup & Useful notes
 
+### Compilation and run
+
+* Ensure GPU mode is activated
+* Start VM and simulation
+* mkdir build && cd build
+* cmake .. && make
+* ./path_planning
+
 ## Algorithm
 
 ## Trial & Error / Reflection

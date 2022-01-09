@@ -99,58 +99,121 @@ int main() {
               TODO: define a path made up of (x,y) points that the car will visit
               sequentially every .02 seconds
               ******************************************************************** */
-          // Start lane
-          //double lane = 2.0;
+          // Parameters
+          int nb_points_planner = 50;
+          int lane = 1;
+          double spline_distance = 30.0; // Meters
           
-          // Targets
-          //double limit_speed_margin = 0.5; // MPH
-          //double limit_speed = 50.0 - limit_speed_margin; // MPH
-                                
-          // Distance between points (0.5m / 20ms = 25 m/s)                   
-          double target_car_speed = 50.0/(0.00062137*60.0*60.0); // MPH to M/S
-          double target_dist_inc = target_car_speed/50.0; // M/S to M/ 20 MS (20/1000)
-          
-          double dist_inc_max_delta = 10.0 / (50.0); // 10 M/S2 20/1000 
-          
-          double car_speed_mps = car_speed/(0.00062137*60.0*60.0); // MPH to M/S
+          // Speed and acceleration targets
+          double limit_speed_margin = 0.5; // MPH
+          double limit_speed_mph = 50.0 - limit_speed_margin; // MPH
+          double limit_speed_mps = limit_speed_mph/(0.00062137*60.0*60.0); // MPH
+          double limit_acc = 10.0; // 10 M/S2
+          double limit_dist_inc = limit_acc / (50.0); // /1000 M/MS2 >> *20 M/20MS2
 
-          double dist_inc = 0; // M/S to M/ 20 MS (20/1000)
-          if (previous_path_x.size() < 2) {
-            dist_inc = car_speed/50.0; // M/S to M/ 20 MS (20/1000)
+          // Dynbamic variables initialization
+          int previous_path_size = previous_path_x.size();
+          
+          // Widely spaced waypoints for spline determination
+          vector<double> pts_x;
+          vector<double> pts_y;
+          
+          // Starting point (either car location or previous path end point)
+          double ref_x = car_x;
+          double ref_y = car_y;
+          double ref_yaw = deg2rad(car_yaw);
+          
+          // Determine car reference location using either tangent (requiring 2 points) or ego vehicle information
+          if (previous_path_size < 2) {
+            std::cout << "No path!" << std::endl;
+            // Reference is vehicle information
+            double prev_car_x = car_x - cos(car_yaw);
+            double prev_car_y = car_y - sin(car_yaw);
+            
+            pts_x.push_back(prev_car_x);
+            pts_x.push_back(car_x);
+            
+            pts_y.push_back(prev_car_y);
+            pts_y.push_back(car_y);
+            
           } else {
-            vector<double> prev_sd1 = getFrenet(previous_path_x[1], previous_path_y[1], car_yaw, map_waypoints_x, map_waypoints_y);
-            vector<double> prev_sd2 = getFrenet(previous_path_x[2], previous_path_y[2], car_yaw, map_waypoints_x, map_waypoints_y);
-            dist_inc = prev_sd2[0] - prev_sd1[0];
+            std::cout << "Path!" << std::endl;
+            // Reference is previous path end point
+            ref_x = previous_path_x[previous_path_size-1];
+            ref_y = previous_path_y[previous_path_size-1];
+            
+            double prev_ref_x = previous_path_x[previous_path_size-2];
+            double prev_ref_y = previous_path_y[previous_path_size-2];
+            ref_yaw = atan2(ref_y-prev_ref_y, ref_x-prev_ref_x);
+            
+            pts_x.push_back(prev_ref_x);
+            pts_x.push_back(ref_x);
+            
+            pts_y.push_back(prev_ref_y);
+            pts_y.push_back(ref_y);            
           }
           
-          std::cout << "Target dist inc:" << target_dist_inc << " - Max dist inc:" << dist_inc_max_delta << std::endl;
-          std::cout << "Speed:" << car_speed << " - Speed MPS:" << car_speed_mps << " - Dist inc:" << dist_inc << "\r\n" << std::endl;              
+          // Calculate XY position of spline points, separated by spline_distance meters
+          vector<double> next_wp0 = getXY(car_s+1.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
-          for(int i = 0; i < 50; i++) {
-            if(dist_inc < target_dist_inc) {
-              dist_inc = dist_inc + dist_inc_max_delta;
-              
-              if(dist_inc > target_dist_inc) {
-                dist_inc = target_dist_inc;
-              }
-              
-            } else if(dist_inc > target_dist_inc) {
-              
-              dist_inc = dist_inc + dist_inc_max_delta;
-                            
-              if(dist_inc < target_dist_inc) {
-                dist_inc = target_dist_inc;
-              }
-            } 
-            double next_s = car_s + (i+1) * dist_inc;
-            double next_d = 6.0;
+          pts_x.push_back(next_wp0[0]);
+          pts_x.push_back(next_wp1[0]);
+          pts_x.push_back(next_wp2[0]);
+          
+          pts_y.push_back(next_wp0[1]);
+          pts_y.push_back(next_wp1[1]);
+          pts_y.push_back(next_wp2[1]);
+          
+          // Shift car reference angle to 0 degress
+          for (int i = 0; i< pts_x.size(); i++) {
+            double shift_x = pts_x[i]-ref_x;
+            double shift_y = pts_y[i]-ref_y;
             
-            vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            
-            next_x_vals.push_back(next_xy[0]);
-            next_y_vals.push_back(next_xy[1]);
+            pts_x[i] = (shift_x * cos(0-ref_yaw) - shift_y * sin(0-ref_yaw));
+            pts_y[i] = (shift_x * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
           }
-                    
+          
+          // Create spline
+          tk::spline s;
+          s.set_points(pts_x, pts_y);
+          
+          // Create point vector for planner
+          // - Add previous non-consumed points
+          for (int i = 0; i< previous_path_size; i++) {
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
+          }
+          
+          // - Generate points up to max size (to compensate for points that were consumed between iterations)
+          double target_x = spline_distance;
+          double target_y = s(target_x);
+          double target_dist = sqrt(target_x*target_x+target_y*target_y);
+          
+          double x_add_on = 0;
+          
+          for (int i = 0; i< nb_points_planner-previous_path_size; i++) {            
+            double N = (target_dist/(0.02*limit_speed_mph/2.24));
+            double x_point = x_add_on + target_x/N;
+            double y_point = s(x_point);
+
+            x_add_on = x_point;
+            
+            double x_ref = x_point;
+            double y_ref = y_point;
+            
+            // Rotate back to map coordinates
+            x_point = (x_ref * cos(0-ref_yaw) - y_ref * sin(0-ref_yaw));
+            y_point = (x_ref * sin(0-ref_yaw) + y_ref * cos(0-ref_yaw));
+            
+            x_point += x_ref;
+            y_point += y_ref;
+            
+            next_x_vals.push_back(x_point);
+            next_y_vals.push_back(y_point);
+          }
+         
           /** ********************************************************************
               TODO: END
               ******************************************************************** */
