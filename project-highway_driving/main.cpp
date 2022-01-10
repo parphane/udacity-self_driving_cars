@@ -14,9 +14,25 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+/** ********************************************************************
+  GLOBAL VARIABLES, fixed and tunable
+  ******************************************************************** */      
+// STATIC
+// - Fixed
 const double MPH_MPS = 1609.34/(60.0*60.0);
 const double MPS_MP20MS = 20.0/1000.0;
 const double MPH_MP20MS = MPH_MPS*MPS_MP20MS;
+
+// - Tunables
+const int nb_points_planner = 50; // Points for planner (more = reduced ability to react to impromptu events)
+const double spline_distance = 30.0; // Meters 
+
+const double limit_speed_margin = 0.5; // Margin for max speed in miles per hour
+const double limit_speed_mph = 50.0 - limit_speed_margin; // Max speed in miles per hour
+const double limit_speed_mp20ms = limit_speed_mph*MPH_MP20MS; // Max speed in meters per 20ms
+const double limit_acc_mps2 = 10.0; // Max acceleration in meters per seconds^2
+const double limit_acc_mp20ms2 = limit_acc_mps2*MPS_MP20MS*MPS_MP20MS; // Max acceleration in meters per 20ms^2
+const double collision_avoid_safe_distance = 30.0; // Safe distance in meters
 
 int main() {
   uWS::Hub h;
@@ -55,8 +71,16 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  /** ********************************************************************
+      VARIABLES TO PERSIST BETWEEN CALLS
+      ******************************************************************** */
+  int lane = 1;
+  double target_speed_mp20ms = 0; 
+  /** ******************************************************************** */    
+
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
-               &map_waypoints_dx,&map_waypoints_dy]
+               &map_waypoints_dx,&map_waypoints_dy,
+               &lane, &target_speed_mp20ms] // Added variables to persist between calls
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -97,18 +121,6 @@ int main() {
               TODO: define a path made up of (x,y) points that the car will visit
               sequentially every .02 seconds
               ******************************************************************** */
-          // Parameters
-          int nb_points_planner = 50;
-          int lane = 1;
-          double spline_distance = 30.0; // Meters
-          
-          // Speed and acceleration targets
-          double limit_speed_margin = 0.5; // MPH
-          double limit_speed_mph = 50.0 - limit_speed_margin; // MPH
-          double limit_speed_mp20ms = limit_speed_mph*MPH_MP20MS; // MPH
-          double limit_acc = 10.0; // 10 M/S2
-          double limit_dist_inc = limit_acc / (50.0); // /1000 M/MS2 >> *20 M/20MS2
-          double safe_distance = 30.0;
          
           // Widely spaced waypoints for spline determination
           vector<double> pts_x;
@@ -124,8 +136,10 @@ int main() {
           
           
           /** ********************************************************************
-              DETERMINE INCOMING COLLISION
+              COLLISION AVOIDANCE)
               ******************************************************************** */
+          bool flag_too_close_front = false;
+          bool flag_too_close_back = false;
           
           if(previous_path_size > 0) {
               car_s = end_path_s;
@@ -145,20 +159,31 @@ int main() {
                 check_car_s += ((double)previous_path_size*0.02*check_speed);
                 
                 // Check if car is in front and if distance is inferior to 30 m
-                if((check_car_s > car_s) && ((check_car_s-car_s) < safe_distance) ) {
-                                        
+                if((check_car_s > car_s) && ((check_car_s-car_s) < collision_avoid_safe_distance) ) {                                        
                     // Assign limited speed
-                    double new_limit_speed_mp20ms = (check_speed - limit_speed_margin) * MPH_MP20MS;
-                    
-                    if(new_limit_speed_mp20ms < limit_speed_mp20ms) {
-                        limit_speed_mp20ms = new_limit_speed_mp20ms;
-                    }
-                    
+                    flag_too_close_front = true;
+                    // Break loop
+                    continue;
                 }
             }
           }
           
           car_s = j[1]["s"];
+          
+          /** ********************************************************************
+              DETERMINE ACCELERATION
+              ******************************************************************** */
+          if (flag_too_close_front) {
+              target_speed_mp20ms -= limit_acc_mp20ms2;
+          } else {
+              if (target_speed_mp20ms < limit_speed_mp20ms) {
+                target_speed_mp20ms += limit_acc_mp20ms2;
+                
+                if (target_speed_mp20ms > limit_speed_mp20ms) {
+                  target_speed_mp20ms = limit_speed_mp20ms;
+                }
+              }
+          }
           
           /** ********************************************************************
               DETERMINE PATH
@@ -235,7 +260,7 @@ int main() {
           double x_add_on = 0.0;
           
           for (int i = 0; i<= nb_points_planner-previous_path_size; i++) {            
-            double N = (target_dist/limit_speed_mp20ms);
+            double N = (target_dist/target_speed_mp20ms);
             double x_point = x_add_on + target_x/N;
             double y_point = s(x_point);
 
