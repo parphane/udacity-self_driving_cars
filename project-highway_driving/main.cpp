@@ -14,6 +14,10 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+const double MPH_MPS = 1609.34/(60.0*60.0);
+const double MPS_MP20MS = 20.0/1000.0;
+const double MPH_MP20MS = MPH_MPS*MPS_MP20MS;
+
 int main() {
   uWS::Hub h;
 
@@ -88,13 +92,7 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
-
-          json msgJson;
-
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
-
-         
+        
           /** ********************************************************************
               TODO: define a path made up of (x,y) points that the car will visit
               sequentially every .02 seconds
@@ -107,25 +105,67 @@ int main() {
           // Speed and acceleration targets
           double limit_speed_margin = 0.5; // MPH
           double limit_speed_mph = 50.0 - limit_speed_margin; // MPH
-          double limit_speed_mps = limit_speed_mph/(0.00062137*60.0*60.0); // MPH
+          double limit_speed_mp20ms = limit_speed_mph*MPH_MP20MS; // MPH
           double limit_acc = 10.0; // 10 M/S2
           double limit_dist_inc = limit_acc / (50.0); // /1000 M/MS2 >> *20 M/20MS2
-
-          // Dynbamic variables initialization
-          int previous_path_size = previous_path_x.size();
-          
+          double safe_distance = 30.0;
+         
           // Widely spaced waypoints for spline determination
           vector<double> pts_x;
           vector<double> pts_y;
+          
+          // Dynbamic variables initialization
+          int previous_path_size = previous_path_x.size();
           
           // Starting point (either car location or previous path end point)
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
           
+          
+          /** ********************************************************************
+              DETERMINE INCOMING COLLISION
+              ******************************************************************** */
+          
+          if(previous_path_size > 0) {
+              car_s = end_path_s;
+          }
+          
+          for(int i =0; i < sensor_fusion.size(); i++) {
+            // Check if car is in ego vehicle lane
+            double d = sensor_fusion[i][6];
+            // Check if car is in +2 or -2 d from our car (1 lane is 4 large)
+            if(d < (2+4*lane+2) && d > (2+4*lane-2)) {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+                
+                // Determine the other car S future value to compare to the ego car end of path S value
+                check_car_s += ((double)previous_path_size*0.02*check_speed);
+                
+                // Check if car is in front and if distance is inferior to 30 m
+                if((check_car_s > car_s) && ((check_car_s-car_s) < safe_distance) ) {
+                                        
+                    // Assign limited speed
+                    double new_limit_speed_mp20ms = (check_speed - limit_speed_margin) * MPH_MP20MS;
+                    
+                    if(new_limit_speed_mp20ms < limit_speed_mp20ms) {
+                        limit_speed_mp20ms = new_limit_speed_mp20ms;
+                    }
+                    
+                }
+            }
+          }
+          
+          car_s = j[1]["s"];
+          
+          /** ********************************************************************
+              DETERMINE PATH
+              ******************************************************************** */          
+          
           // Determine car reference location using either tangent (requiring 2 points) or ego vehicle information
           if (previous_path_size < 2) {
-            std::cout << "No path!" << std::endl;
             // Reference is vehicle information
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
@@ -137,7 +177,6 @@ int main() {
             pts_y.push_back(car_y);
             
           } else {
-            std::cout << "Path!" << std::endl;
             // Reference is previous path end point
             ref_x = previous_path_x[previous_path_size-1];
             ref_y = previous_path_y[previous_path_size-1];
@@ -180,8 +219,10 @@ int main() {
           s.set_points(pts_x, pts_y);
           
           // Create point vector for planner
+          vector<double> next_x_vals;
+          vector<double> next_y_vals;
           // - Add previous non-consumed points
-          for (int i = 0; i< previous_path_size; i++) {
+          for (int i = 0; i< previous_path_size; i++) { // TODO: REVERT IF DOES NOT CHANGE
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);
           }
@@ -191,24 +232,26 @@ int main() {
           double target_y = s(target_x);
           double target_dist = sqrt(target_x*target_x+target_y*target_y);
           
-          double x_add_on = 0;
+          double x_add_on = 0.0;
           
-          for (int i = 0; i< nb_points_planner-previous_path_size; i++) {            
-            double N = (target_dist/(0.02*limit_speed_mph/2.24));
+          for (int i = 0; i<= nb_points_planner-previous_path_size; i++) {            
+            double N = (target_dist/limit_speed_mp20ms);
             double x_point = x_add_on + target_x/N;
             double y_point = s(x_point);
 
             x_add_on = x_point;
             
-            double x_ref = x_point;
-            double y_ref = y_point;
+            // 
+            double x_veh_coord = x_point;
+            double y_veh_coord = y_point;
             
             // Rotate back to map coordinates
-            x_point = (x_ref * cos(0-ref_yaw) - y_ref * sin(0-ref_yaw));
-            y_point = (x_ref * sin(0-ref_yaw) + y_ref * cos(0-ref_yaw));
+            x_point = (x_veh_coord * cos(ref_yaw) - y_veh_coord * sin(ref_yaw));
+            y_point = (x_veh_coord * sin(ref_yaw) + y_veh_coord * cos(ref_yaw));
             
-            x_point += x_ref;
-            y_point += y_ref;
+            // Translate from car current position
+            x_point += ref_x;
+            y_point += ref_y;
             
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
@@ -218,6 +261,14 @@ int main() {
               TODO: END
               ******************************************************************** */
 
+          // Console path dump
+          //for (int i = 0; i< next_x_vals.size(); i++) {            
+          //  std::cout << "[" << next_x_vals[i] << "; "<< next_y_vals[i] << "]    ";
+          //}
+          //std::cout << std::endl;
+          
+          json msgJson;
+          
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
