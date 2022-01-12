@@ -149,7 +149,7 @@ int main() {
             // Check if car is in ego vehicle lane
             double d = sensor_fusion[i][6];
             // Check if car is in +2 or -2 d from our car (1 lane is 4 large)
-            if(d < (2+4*lane+2) && d > (2+4*lane-2)) {
+            if((2+4*lane-2) < d && d < (2+4*lane+2)) {
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
                 double check_speed = sqrt(vx*vx+vy*vy);
@@ -160,10 +160,20 @@ int main() {
                 
                 // Check if car is in front and if distance is inferior to 30 m
                 if((check_car_s > car_s) && ((check_car_s-car_s) < collision_avoid_safe_distance) ) {                                        
-                    // Assign limited speed
-                    flag_too_close_front = true;
-                    // Break loop
-                    continue;
+                  // TODO: Check if can take over
+                  // Assign limited speed
+                  //flag_too_close_front = true;
+                  // Change lane
+                  if (0 < d && d <= 4) {
+                    lane = 1;
+                  } else if (4 < d && d <= 8) {
+                    lane = 0;
+                  } else if (8 < d && d <= 12) {
+                    lane = 1;
+                  } 
+                  // Break loop
+                  continue;
+                  // TODO: Memorize speed of car in front to adapt ego vehicle speed to it
                 }
             }
           }
@@ -173,6 +183,7 @@ int main() {
           /** ********************************************************************
               DETERMINE ACCELERATION
               ******************************************************************** */
+          // TODO: Raise/Lower speed in path planner
           if (flag_too_close_front) {
               target_speed_mp20ms -= limit_acc_mp20ms2;
           } else {
@@ -218,9 +229,9 @@ int main() {
           }
           
           // Calculate XY position of spline points, separated by spline_distance meters
-          vector<double> next_wp0 = getXY(car_s+1.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s+1.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
           pts_x.push_back(next_wp0[0]);
           pts_x.push_back(next_wp1[0]);
