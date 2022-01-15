@@ -72,18 +72,18 @@ int main() {
     map_waypoints_dx.push_back(d_x);
     map_waypoints_dy.push_back(d_y);
   }
-
-  /** ********************************************************************
-      VARIABLES TO PERSIST BETWEEN CALLS
-      ******************************************************************** */
+  /*****************************************************************************
+     VARIABLES TO PERSIST BETWEEN CALLS
+   ****************************************************************************/
   int target_lane = 1;
   double target_speed_mp20ms = 0;
   EgoVehicleState target_state = Ready;
-  /** ******************************************************************** */    
+  /****************************************************************************/
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy,
-               &target_lane, &target_speed_mp20ms, &target_state] // Added variables to persist between calls
+               // Pass variables to persist between calls
+               &target_lane, &target_speed_mp20ms, &target_state] 
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -109,7 +109,7 @@ int main() {
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
 
-          // Previous path data given to the Planner
+          // Non-consumed points of the previous path given to the Planner          
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
           // Previous path's end s and d values 
@@ -120,16 +120,25 @@ int main() {
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
         
-          /** ********************************************************************
-              TODO: define a path made up of (x,y) points that the car will visit
-              sequentially every .02 seconds
-              ******************************************************************** */
-         
-          // Widely spaced waypoints for spline determination
-          vector<double> pts_x;
-          vector<double> pts_y;
-          
-          // Dynbamic variables initialization
+          /*********************************************************************
+            OBJECTIVE:
+            Determine a path made up of (x,y) points that the car will visit 
+            sequentially every .02 seconds (20 milliseconds).
+            
+            LOGIC:
+            - Avoid imminent collision by adapting speed
+            - Avoid slowing down by looking far horizon
+            - Determine 
+              - Front/rear left/right lane change possibility
+                - Closest front/rear left/right vehicles and speed
+                - Closest vehicles collision if lane change
+              - Best lane for change based on closest vehicles presence & speed
+              - Ego vehicle state (speed, lane keep or change)
+            
+            NOTE:
+            Logic is executed around every ~.1 seconds (100 milliseconds)
+          *********************************************************************/
+          // Retrieve previous path points that were not consumed yet
           int previous_path_size = previous_path_x.size();
           
           // Starting point (either car location or previous path end point)
@@ -210,12 +219,11 @@ int main() {
               ******************************************************************** */
           
           /** ********************************************************************
-              FAR HORIZON: LANE CHANGE REQUIRED?
-              ******************************************************************** */
-          
-          /** ********************************************************************
               DETERMINE PATH
               ******************************************************************** */          
+          // Widely spaced waypoints for spline determination
+          vector<double> spline_xs;
+          vector<double> spline_ys;
           
           // Determine car reference location using either tangent (requiring 2 points) or ego vehicle information
           if (previous_path_size < 2) {
@@ -223,11 +231,11 @@ int main() {
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
             
-            pts_x.push_back(prev_car_x);
-            pts_x.push_back(car_x);
+            spline_xs.push_back(prev_car_x);
+            spline_xs.push_back(car_x);
             
-            pts_y.push_back(prev_car_y);
-            pts_y.push_back(car_y);
+            spline_ys.push_back(prev_car_y);
+            spline_ys.push_back(car_y);
             
           } else {
             // Reference is previous path end point
@@ -238,11 +246,11 @@ int main() {
             double prev_ref_y = previous_path_y[previous_path_size-2];
             ref_yaw = atan2(ref_y-prev_ref_y, ref_x-prev_ref_x);
             
-            pts_x.push_back(prev_ref_x);
-            pts_x.push_back(ref_x);
+            spline_xs.push_back(prev_ref_x);
+            spline_xs.push_back(ref_x);
             
-            pts_y.push_back(prev_ref_y);
-            pts_y.push_back(ref_y);            
+            spline_ys.push_back(prev_ref_y);
+            spline_ys.push_back(ref_y);            
           }
           
           // Calculate XY position of spline points, separated by spline_distance meters
@@ -250,26 +258,26 @@ int main() {
           vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2.0+4.0*target_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2.0+4.0*target_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
-          pts_x.push_back(next_wp0[0]);
-          pts_x.push_back(next_wp1[0]);
-          pts_x.push_back(next_wp2[0]);
+          spline_xs.push_back(next_wp0[0]);
+          spline_xs.push_back(next_wp1[0]);
+          spline_xs.push_back(next_wp2[0]);
           
-          pts_y.push_back(next_wp0[1]);
-          pts_y.push_back(next_wp1[1]);
-          pts_y.push_back(next_wp2[1]);
+          spline_ys.push_back(next_wp0[1]);
+          spline_ys.push_back(next_wp1[1]);
+          spline_ys.push_back(next_wp2[1]);
           
           // Shift car reference angle to 0 degress
-          for (int i = 0; i< pts_x.size(); i++) {
-            double shift_x = pts_x[i]-ref_x;
-            double shift_y = pts_y[i]-ref_y;
+          for (int i = 0; i< spline_xs.size(); i++) {
+            double shift_x = spline_xs[i]-ref_x;
+            double shift_y = spline_ys[i]-ref_y;
             
-            pts_x[i] = (shift_x * cos(0-ref_yaw) - shift_y * sin(0-ref_yaw));
-            pts_y[i] = (shift_x * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
+            spline_xs[i] = (shift_x * cos(0-ref_yaw) - shift_y * sin(0-ref_yaw));
+            spline_ys[i] = (shift_x * sin(0-ref_yaw) + shift_y * cos(0-ref_yaw));
           }
           
           // Create spline
-          tk::spline s;
-          s.set_points(pts_x, pts_y);
+          tk::spline path_spline;
+          path_spline.set_points(spline_xs, spline_ys);
           
           // Create point vector for planner
           vector<double> next_x_vals;
@@ -282,7 +290,7 @@ int main() {
           
           // - Generate points up to max size (to compensate for points that were consumed between iterations)
           double target_x = spline_distance;
-          double target_y = s(target_x);
+          double target_y = path_spline(target_x);
           double target_dist = sqrt(target_x*target_x+target_y*target_y);
           
           double x_add_on = 0.0;
@@ -290,7 +298,7 @@ int main() {
           for (int i = 0; i<= nb_points_planner-previous_path_size; i++) {            
             double N = (target_dist/target_speed_mp20ms);
             double x_point = x_add_on + target_x/N;
-            double y_point = s(x_point);
+            double y_point = path_spline(x_point);
 
             x_add_on = x_point;
             
