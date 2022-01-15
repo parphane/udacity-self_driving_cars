@@ -22,6 +22,8 @@ using std::vector;
 const double MPH_MPS = 1609.34/(60.0*60.0);
 const double MPS_MP20MS = 20.0/1000.0;
 const double MPH_MP20MS = MPH_MPS*MPS_MP20MS;
+enum EgoVehicleState{Ready=0, LaneKeep=1, LaneChangeLeft=2, LaneChangeRight=3};
+
 
 // - Tunables
 const int nb_points_planner = 50; // Points for planner (more = reduced ability to react to impromptu events)
@@ -74,13 +76,14 @@ int main() {
   /** ********************************************************************
       VARIABLES TO PERSIST BETWEEN CALLS
       ******************************************************************** */
-  int lane = 1;
-  double target_speed_mp20ms = 0; 
+  int target_lane = 1;
+  double target_speed_mp20ms = 0;
+  EgoVehicleState target_state = Ready;
   /** ******************************************************************** */    
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy,
-               &lane, &target_speed_mp20ms] // Added variables to persist between calls
+               &target_lane, &target_speed_mp20ms, &target_state] // Added variables to persist between calls
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -133,13 +136,16 @@ int main() {
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
+
+          // Initial flags
+          bool flag_too_close_front = false;
+          bool flag_lane_change_required = false;
           
+          // TODO: Add cost function to determine whether it is better to go left or right or stay in lane or slow down to pass vehicles
           
           /** ********************************************************************
-              COLLISION AVOIDANCE)
+              COLLISION AVOIDANCE: SPEED CHANGE REQUIRED? & LANE CHANGE REQUIRED?
               ******************************************************************** */
-          bool flag_too_close_front = false;
-          bool flag_too_close_back = false;
           
           if(previous_path_size > 0) {
               car_s = end_path_s;
@@ -149,7 +155,7 @@ int main() {
             // Check if car is in ego vehicle lane
             double d = sensor_fusion[i][6];
             // Check if car is in +2 or -2 d from our car (1 lane is 4 large)
-            if((2+4*lane-2) < d && d < (2+4*lane+2)) {
+            if((2+4*target_lane-2) < d && d < (2+4*target_lane+2)) {
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
                 double check_speed = sqrt(vx*vx+vy*vy);
@@ -162,14 +168,17 @@ int main() {
                 if((check_car_s > car_s) && ((check_car_s-car_s) < collision_avoid_safe_distance) ) {                                        
                   // TODO: Check if can take over
                   // Assign limited speed
-                  //flag_too_close_front = true;
+                  flag_too_close_front = true;
+                  flag_lane_change_required = true;
+                  
+                  // TODO: Put lane change after LR collision avoidance and cost function
                   // Change lane
                   if (0 < d && d <= 4) {
-                    lane = 1;
+                    target_lane = 1;
                   } else if (4 < d && d <= 8) {
-                    lane = 0;
+                    target_lane = 0;
                   } else if (8 < d && d <= 12) {
-                    lane = 1;
+                    target_lane = 1;
                   } 
                   // Break loop
                   continue;
@@ -195,6 +204,14 @@ int main() {
                 }
               }
           }
+          
+          /** ********************************************************************
+              FAR HORIZON: LANE CHANGE REQUIRED?
+              ******************************************************************** */
+          
+          /** ********************************************************************
+              FAR HORIZON: LANE CHANGE REQUIRED?
+              ******************************************************************** */
           
           /** ********************************************************************
               DETERMINE PATH
@@ -229,9 +246,9 @@ int main() {
           }
           
           // Calculate XY position of spline points, separated by spline_distance meters
-          vector<double> next_wp0 = getXY(car_s+1.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2.0+4.0*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s+1.0*spline_distance, (2.0+4.0*target_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s+2.0*spline_distance, (2.0+4.0*target_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s+3.0*spline_distance, (2.0+4.0*target_lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
           pts_x.push_back(next_wp0[0]);
           pts_x.push_back(next_wp1[0]);
