@@ -27,14 +27,19 @@ enum EgoVehicleState{Ready=0, LaneKeep=1, LaneChangeLeft=2, LaneChangeRight=3};
 
 // - Tunables
 const int nb_points_planner = 50; // Points for planner (more = reduced ability to react to impromptu events)
-const double spline_distance = 30.0; // Meters 
+const double spline_distance = 60.0; // Meters 
 
 const double limit_speed_margin = 0.5; // Margin for max speed in miles per hour
 const double limit_speed_mph = 50.0 - limit_speed_margin; // Max speed in miles per hour
 const double limit_speed_mp20ms = limit_speed_mph*MPH_MP20MS; // Max speed in meters per 20ms
-const double limit_acc_mps2 = 10.0; // Max acceleration in meters per seconds^2
+const double limit_acc_mps2 = 3*10.0; // Max acceleration in meters per seconds^2
+// NOTE: Multiplying because the algo seems to be called every 100ms so acceleration/deceleration ends up being 2mps2
 const double limit_acc_mp20ms2 = limit_acc_mps2*MPS_MP20MS*MPS_MP20MS; // Max acceleration in meters per 20ms^2
+const double change_lane_distance = 60.0; // Lane change request distance
+const double change_lane_lr_distance = 15; // Safe distance in meters to change lane
 const double collision_avoid_safe_distance = 30.0; // Safe distance in meters
+const double collision_emergency_safe_distance = 15.0; // Safe distance in meters
+
 
 int main() {
   uWS::Hub h;
@@ -119,6 +124,10 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
+          int closest_left_rear=-1, closest_left_front=-1; 
+          int closest_right_rear=-1, closest_right_front=-1;
+          double closest_left_front_ds = -1, closest_right_front_ds = -1;
+          
         
           /*********************************************************************
             OBJECTIVE:
@@ -148,63 +157,183 @@ int main() {
 
           // Initial flags
           bool flag_too_close_front = false;
+          bool flag_emergency_brake = false;
           bool flag_lane_change_required = false;
+          bool flag_can_change_left = true;
+          bool flag_can_change_right = true;
           
           // TODO: Add cost function to determine whether it is better to go left or right or stay in lane or slow down to pass vehicles
           
           /** ********************************************************************
               COLLISION AVOIDANCE: SPEED CHANGE REQUIRED? & LANE CHANGE REQUIRED?
               ******************************************************************** */
-          
+
+          // Position at at end of last path for next path points determination
           if(previous_path_size > 0) {
               car_s = end_path_s;
+              car_d = end_path_d;
           }
           
+          // COLLISION AVOIDANCE
+          double front_speed = target_speed_mp20ms;
           for(int i =0; i < sensor_fusion.size(); i++) {
-            // Check if car is in ego vehicle lane
             double d = sensor_fusion[i][6];
-            // Check if car is in +2 or -2 d from our car (1 lane is 4 large)
+            // Check if vehicle is in ego vehicle lane +2 or -2 d from ego vehicle (1 lane is 4 large)
             if((2+4*target_lane-2) < d && d < (2+4*target_lane+2)) {
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
                 double check_speed = sqrt(vx*vx+vy*vy);
-                double check_car_s = sensor_fusion[i][5];
+                double check_s = sensor_fusion[i][5];
                 
-                // Determine the other car S future value to compare to the ego car end of path S value
-                check_car_s += ((double)previous_path_size*0.02*check_speed);
+                // Determine other vehicle future S value to compare to ego vehicle end of path S value
+                check_s += ((double)previous_path_size*0.02*check_speed);
                 
-                // Check if car is in front and if distance is inferior to 30 m
-                if((check_car_s > car_s) && ((check_car_s-car_s) < collision_avoid_safe_distance) ) {                                        
-                  // TODO: Check if can take over
-                  // Assign limited speed
-                  flag_too_close_front = true;
+                // Check if car is in front and if speed is lower
+                if((check_s > car_s) && ((check_s-car_s) < change_lane_distance)) {
                   flag_lane_change_required = true;
+                }
+                
+                // Check if car is in front and if distance is acceptable
+                if((check_s > car_s) && ((check_s-car_s) < collision_avoid_safe_distance) ) {                                        
+                  // TODO: Check if can take over
+                  // Reduce speed
+                  flag_lane_change_required = true;
+                  flag_too_close_front = true;
+                  if ((check_s-car_s) < collision_emergency_safe_distance) {
+                    flag_emergency_brake = true;
+                  }
+                  front_speed = check_speed*MPH_MP20MS;
                   
                   // TODO: Put lane change after LR collision avoidance and cost function
-                  // Change lane
-                  if (0 < d && d <= 4) {
-                    target_lane = 1;
-                  } else if (4 < d && d <= 8) {
-                    target_lane = 0;
-                  } else if (8 < d && d <= 12) {
-                    target_lane = 1;
-                  } 
-                  // Break loop
-                  continue;
+                  break;
                   // TODO: Memorize speed of car in front to adapt ego vehicle speed to it
                 }
             }
           }
           
-          car_s = j[1]["s"];
+          // LANE CHANGE ANTICIPATION          
+          if(flag_lane_change_required) {
+            // TODO: Memorize lane change intention between loops
+
+            // Can switch left?
+            if(target_lane == 0) {
+              flag_can_change_left = false;
+            }
+            // Can switch right?
+            if(target_lane == 2) {
+              flag_can_change_right = false;
+            }
+            
+            // FOND BEST LANE CHANGE
+            for(int i =0; (i < sensor_fusion.size()) && (flag_can_change_left || flag_can_change_right); i++) {
+              double d = sensor_fusion[i][6];
+              
+              // Find closest vehicle left
+              if(flag_can_change_left && (2+4*(target_lane-1)-2) < d && d < (2+4*(target_lane-1)+2)) {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_s = sensor_fusion[i][5];
+                
+                // Determine other vehicle future S value to compare to ego vehicle end of path S value
+                check_s += ((double)previous_path_size*0.02*check_speed);
+
+                // Check if car is too close left for lane change
+                if(check_s < car_s && ((car_s-check_s) < change_lane_lr_distance)) {
+                  flag_can_change_left = false;
+                }
+                
+                // Check if car is closest in front
+                if(check_s > car_s && (closest_left_front == -1 || ((check_s-car_s) < closest_left_front_ds))) {                  
+                  closest_left_front = i;
+                  closest_left_front_ds = check_s-car_s;
+
+                  if(closest_left_front_ds < change_lane_lr_distance) {
+                    flag_can_change_left = false;
+                  }
+                }
+              }
+              
+              // Find closest vehicle right
+              if(flag_can_change_right && (2+4*(target_lane+1)-2) < d && d < (2+4*(target_lane+1)+2)) {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx+vy*vy);
+                double check_s = sensor_fusion[i][5];
+                
+                // Determine other vehicle future S value to compare to ego vehicle end of path S value
+                check_s += ((double)previous_path_size*0.02*check_speed);
+                
+                // Check if car is too close right for lane change
+                if(check_s < car_s && ((car_s-check_s) < change_lane_lr_distance)) {
+                  flag_can_change_right = false;
+                }
+                
+                // Check if car is closest in front
+                if(check_s > car_s && (closest_right_front == -1 || ((check_s-car_s) < closest_right_front_ds))) {                  
+                  closest_right_front = i;
+                  closest_right_front_ds = check_s-car_s;
+                  
+                  if(closest_right_front_ds < change_lane_lr_distance) {
+                    flag_can_change_right = false;
+                  }
+                }
+              }
+            }
+            
+            // No need to change lane if vehicle is closer than the one far front
+            // TODO: Include speed check
+            if(!flag_too_close_front) {
+              if (closest_left_front_ds < change_lane_distance) {
+                flag_can_change_left = false;
+              }
+              if (closest_right_front_ds < change_lane_distance) {
+                flag_can_change_right = false;
+              }
+            }
+            
+            // Switch if possible
+            // TODO: Incorporate speed in decision
+            if(flag_can_change_left && flag_can_change_right) {
+              // Change to lane with furthest vehicle
+              if (closest_left_front_ds==-1) {                  
+                // Privilege left lane if not vehicles
+                // Left lane empty
+                target_lane -= 1;  
+              } else if (closest_right_front_ds==-1) {
+                // Right lane empty
+                target_lane += 1;
+              } else if (closest_left_front_ds > closest_right_front_ds) {
+                // Left lane vehicle is further
+                target_lane -= 1;
+              } else {
+                // Right lane vehicle is further
+                target_lane += 1;
+              }
+            } else if(flag_can_change_left) {
+              // Can only change left
+              target_lane = target_lane - 1;
+            } else if(flag_can_change_right) {
+              // Can only change right
+              target_lane = target_lane + 1;
+            }
+          }
           
           /** ********************************************************************
               DETERMINE ACCELERATION
               ******************************************************************** */
           // TODO: Raise/Lower speed in path planner
-          if (flag_too_close_front) {
-              target_speed_mp20ms -= limit_acc_mp20ms2;
+          if (flag_emergency_brake) {
+                // NOTE: Multiplying because the algo seems to be called every 100ms so acceleration/deceleration ends up being 2mps2
+                target_speed_mp20ms -= limit_acc_mp20ms2;
+          } else if (flag_too_close_front) {
+              // Smooth acceleration/deceleration when stuck behind a vehicle
+              if (target_speed_mp20ms > front_speed) {
+                // NOTE: Dividing by 2 to smooth deceleration/acceleration behind vehicle
+                target_speed_mp20ms -= limit_acc_mp20ms2/4;
+              }
           } else {
+              // NOTE: Multiplying because the algo seems to be called every 100ms so acceleration/deceleration ends up being 2mps2
               if (target_speed_mp20ms < limit_speed_mp20ms) {
                 target_speed_mp20ms += limit_acc_mp20ms2;
                 
@@ -220,7 +349,8 @@ int main() {
           
           /** ********************************************************************
               DETERMINE PATH
-              ******************************************************************** */          
+              ******************************************************************** */
+          car_s = j[1]["s"];
           // Widely spaced waypoints for spline determination
           vector<double> spline_xs;
           vector<double> spline_ys;
