@@ -51,10 +51,6 @@ Implement a PID controller in C++ to maneuver the vehicle around the track!.
   * Some explanation
 
 ### Trial & Error
-Majors issues met during development:
-* Not understanding that TotalError is equivalent to calculating steer angle
-  * Added then removed variables once code logic was understood...
-  * First compilation and run with PID all set to 1
 * Where to begin from...
   * Added a logic to pass PID as parameters to avoid recompiling at each manual iteration
   * Tuned, P, I and D manually to obtain an "acceptable" behavior, performing a manual Twiddle algorithm
@@ -62,6 +58,19 @@ Majors issues met during development:
     * Increase/Decrease P by 0.1 and observe behavior
     * Keep best P value and Increase/Decrease again until acceptable
     * Repeat for I and D...
+  * P: 0.1, 0.2, 0.09, 0.05, 0.075, 0.025, 0.03, 0.04, 0.06, 0.45, 0.55
+    * Challenge: Try to pass the 1st turn and bridge.
+    * => P = 0.05 Responsive enough, still some oscillations that should be corrected by I,D.
+  * P: 0.5 D: 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 (P:0.6,0.7 because turns do not seem sharp enough)
+    * Challenge: Try to pass the 2nd and 3rd sharp turn
+    * => D = 0.6, P = 0.7
+  * I: 0.1, 0.05, 0.025, 0.01, 0.005, 0.0005, 0.001 (oscillates), 0.00075
+    * Challenge: Try to pass sharp turns in the middle of lane, not at the border
+    * => I = 0.00075
+* Majors issues met during development:
+  * Not understanding that TotalError is equivalent to calculating steer angle
+    * Added then removed variables once code logic was understood...
+    * First compilation and run with PID all set to 1
 
 ### Observations & Todo
 1 Some observation
