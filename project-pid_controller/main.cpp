@@ -30,13 +30,35 @@ string hasData(string s) {
   return "";
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   uWS::Hub h;
 
   PID pid;
   /**
    * TODO: Initialize the pid variable.
    */
+  double init_P = 0.1, init_I = 0.0, init_D = 0.0;
+  if(argc > 1) {
+    if(argc > 4) {
+      std::cout << "FATAL ERROR: Too many parameters passed in CLA (Passed " << argc << ", expected 4)\n";
+      return 1;
+    }
+    if(argc < 4) {
+      std::cout << "FATAL ERROR: Not enough parameters passed in CLA (Passed " << argc << ", expected 4)\n";
+      return 1;
+    }
+    // Display each command-line argument.
+    std::cout << "PID parameters passed in CLA:\n";
+    init_P = std::stod(argv[1]);
+    init_I = std::stod(argv[2]);
+    init_D = std::stod(argv[3]);
+  } else {
+    std::cout << "No PID parameters passed in CLA, using default:\n";    
+  }
+  pid.Init(init_P,init_I,init_D);
+  std::cout << "- P: " << init_P << "\n";
+  std::cout << "- I: " << init_I << "\n";
+  std::cout << "- D: " << init_D << "\n";
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
@@ -63,6 +85,8 @@ int main() {
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
+          pid.UpdateError(cte);
+          steer_value = pid.TotalError();
           
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value 

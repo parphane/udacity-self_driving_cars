@@ -30,11 +30,19 @@ Implement a PID controller in C++ to maneuver the vehicle around the track!.
 ### Baseline code
 
 #### main.cpp
-* some function...
-  * Some description
+* main()
+  * Initialization of PID variables
+  * h.onMessage
+    * Lambda called around every 100ms to calculate steering value
+    * Passes variables that persist between each onMessage event
 #### pid.cpp
-* some function...
-  * Some description
+* UpdateError
+  * Calculate PID parameter respective error based on lane center
+    * Setpoint (SP) is lane center
+    * Process Variable (PV) is distance from lane center   
+* TotalError
+  * Calculate steer angle based on PID parameters and respective errors
+    * Manipulated variable (MV) or Control Variable (CV) is steer angle
 
 ## Reflection / Trial & Error
 
@@ -44,9 +52,16 @@ Implement a PID controller in C++ to maneuver the vehicle around the track!.
 
 ### Trial & Error
 Majors issues met during development:
-* Some issue
-  * Some explanation
-  * Some solution
+* Not understanding that TotalError is equivalent to calculating steer angle
+  * Added then removed variables once code logic was understood...
+  * First compilation and run with PID all set to 1
+* Where to begin from...
+  * Added a logic to pass PID as parameters to avoid recompiling at each manual iteration
+  * Tuned, P, I and D manually to obtain an "acceptable" behavior, performing a manual Twiddle algorithm
+    * Set P to 0.1 and I and D to 0.
+    * Increase/Decrease P by 0.1 and observe behavior
+    * Keep best P value and Increase/Decrease again until acceptable
+    * Repeat for I and D...
 
 ### Observations & Todo
 1 Some observation
