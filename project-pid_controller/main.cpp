@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
   /**
    * TODO: Initialize the pid variable.
    */
-  double  0.075, init_I = 0.0025, init_D = 1.75;
+  double  init_P = 0.075, init_I = 0.0025, init_D = 1.75;
   if(argc > 1) {
     if(argc > 4) {
       std::cout << "FATAL ERROR: Too many parameters passed in CLA (Passed " << argc << ", expected 4)\n";
