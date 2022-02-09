@@ -25,7 +25,8 @@ Implement a PID controller in C++ to maneuver the vehicle around the track!.
 * Start VM and simulation
 * mkdir build && cd build
 * cmake .. && make
-* ./pid
+* ./pid [P] [I] [D]
+  * Optional: Pass P or I or D value
 
 ### Baseline code
 
@@ -67,16 +68,29 @@ Implement a PID controller in C++ to maneuver the vehicle around the track!.
   * I: 0.1, 0.05, 0.025, 0.01, 0.005, 0.0005, 0.001 (oscillates), 0.00075
     * Challenge: Try to pass sharp turns in the middle of lane, not at the border
     * => I = 0.00075
+  * Final tune PID to prevent getting out of track
+    * Increase I for better management of steep turns
+      * I gives emergency response over time if CTE is alway present
+      * P also raised to instantly increases steering
+      * Increased D as a result to minimize oscillations due to P and I increase
+  * FINAL RESULT: 
+    * Car is a bit fidgetty in some turns but do not go over yellow lanes    
+
 * Majors issues met during development:
   * Not understanding that TotalError is equivalent to calculating steer angle
     * Added then removed variables once code logic was understood...
     * First compilation and run with PID all set to 1
 
 ### Observations & Todo
-1 Some observation
-  * Some thing TODO in the future if you are not lazy
+1 Automatic Twiddle
+  * Automatic Twiddle could be done by averaging CTE over the duration of a lap or more
+    * Add/Remove delta for P or I or D
+    * Run 1.25 times a lap
+    * Average CTE and increase/decrease parameter value or increase precision
+    * Repeat for each parameter and let simulation run (reset simulation in case of accident)
+2 Speed control
+  * Did not play with speed control as increasing speed would make the car go off track in steep turns
+  * Kept speed as is
 
 ### Vehicle run
-* Some relevant metric
-
- Some image "![End of run][image1]"
+* See PID Controller.mp4
