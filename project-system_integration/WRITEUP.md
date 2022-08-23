@@ -49,6 +49,8 @@ Drive the vehicle successfully in the simulator.
      * apt-get install ros-kinetic-dbw-mkz-msgs
    * Install catkin_tools package to use catkin_build
      * sudo apt-get install python-catkin-tools
+   * Source ROS comands
+     * source ~/../opt/ros/kinetic/setup.bash
    * rosdep check styx
    * rosdep install -i styx 
    * rosdep check styx
