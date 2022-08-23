@@ -36,10 +36,8 @@ Drive the vehicle successfully in the simulator.
 
  #### Project ROS requirements
  * Install missing dependency
-   * rosdep check styx
-   * rosdep install -i styx 
-   * rosdep check styx
-   * ... does not work
+   * rosdep check styx   
+     * ... does not work
    * apt-get update
    * apt-get install ros-kinetic-dbw-mkz-msgs
      * E: Failed to fetch http://packages.ros.org/ros/ubuntu/pool/main/r/ros-kinetic-dbw-mkz-msgs/ros-kinetic-dbw-mkz-msgs_1.2.3-1xenial-20191214-055208+0000_amd64.deb  404  Not Found [IP: 64.50.236.52 80]"
@@ -51,6 +49,9 @@ Drive the vehicle successfully in the simulator.
      * apt-get install ros-kinetic-dbw-mkz-msgs
    * Install catkin_tools package to use catkin_build
      * sudo apt-get install python-catkin-tools
+   * rosdep check styx
+   * rosdep install -i styx 
+   * rosdep check styx
    * cd ros
    * catkin_make
    * source devel/setup.sh
