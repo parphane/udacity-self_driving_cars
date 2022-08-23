@@ -27,6 +27,9 @@ Drive the vehicle successfully in the simulator.
 
 ## Setup & Useful notes
  ### Workspace configuration
+ 
+Note: Skip this part if using online workspace, but be sure to activate GPU mode, else catkin_make will not work
+
  #### Environment variables
  * Before we begin using ROS in a terminal, ensure that all of the environment variables are present.
    * Source the setup script provided by ROS: source /opt/ros/kinetic/setup.bash (or /home/workspace/ros_setup.sh)
