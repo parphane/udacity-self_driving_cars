@@ -24,7 +24,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-LOOP_RATE = 50
+LOOP_RATE = 50.0
 
 
 class WaypointUpdater(object):
@@ -38,7 +38,7 @@ class WaypointUpdater(object):
         #rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
         # rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
                 
-        # TODO: Add other member variables you need below
+        # TODO: Add other member variables
         self.pose = None
         self.base_waypoints = None
         self.waypoints_2d = None
@@ -50,21 +50,24 @@ class WaypointUpdater(object):
         self.loop()
         
         
-    def loop(self):
-        rospy.loginfo('waypoint_updater.loop')
-        
+    def loop(self):        
         rate = rospy.Rate(LOOP_RATE)        
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
                 # Get closest waypoint 
                 closest_waypoint_idx = self.get_closest_waypoint_id()
-                self.publish_waypoints(closest_waypoint_idx)
+                if not (closest_waypoint_idx is None):
+                    self.publish_waypoints(closest_waypoint_idx)
             rate.sleep()
         
 
     def get_closest_waypoint_id(self):
         x = self.pose.pose.position.x
         y = self.pose.pose.position.y
+        if self.waypoints_tree is None:
+            rospy.logwarn("Empty waypoints_tree")            
+            return None
+        
         closest_idx = self.waypoints_tree.query([x,y], 1)[1]
 
         # Checkf  if closest is ahead or behind of vehicle
@@ -93,7 +96,6 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         # TODO: Implement
         self.pose = msg
-        pass
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
