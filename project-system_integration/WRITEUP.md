@@ -79,7 +79,7 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
   * rosmsg info styx_msgs/Lane
   * Listen to topics
     * rostopic echo /final_waypoints
-    * rostopic echo /rosout (for log messages)
+    * rostopic echo /rosout --filter "m.level == 2" (for log INFO messages)
 
 ### Baseline code
 
