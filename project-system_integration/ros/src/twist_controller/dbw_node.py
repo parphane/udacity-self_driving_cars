@@ -31,10 +31,12 @@ that we have created in the `__init__` function.
 
 '''
 
+LOOP_RATE = 50.0
+
 class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
-
+        
         vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
         fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
         brake_deadband = rospy.get_param('~brake_deadband', .1)
@@ -54,24 +56,48 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # TODO: Create `Controller` object
-        # self.controller = Controller(<Arguments you wish to provide>)
+        self.controller = Controller(
+            LOOP_RATE,
+            vehicle_mass, fuel_capacity, brake_deadband, decel_limit, accel_limit, wheel_radius, wheel_base, steer_ratio, max_lat_accel, max_steer_angle
+        )
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
+        # TODO: Add other member variables
+        self.last_run_time = None
+        self.dbw_enabled = None
+        self.curr_vel_lin = None
+        self.curr_vel_ang = None
+        self.prop_vel_lin = None
+        self.prop_vel_ang = None
+        self.throttle = self.brake = self.steering = 0.0
+        
         self.loop()
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(LOOP_RATE) # 50Hz
         while not rospy.is_shutdown():
-            # TODO: Get predicted throttle, brake, and steering using `twist_controller`
-            # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
-            # if <dbw is enabled>:
-            #   self.publish(throttle, brake, steer)
+            
+            # Compute sample time
+            current_run_time = rospy.get_time()
+            if not (self.last_run_time is None):
+                sample_time = current_run_time - self.last_run_time
+            self.last_run_time = current_run_time
+            
+            # Run controller only when DBW enabled
+            if self.dbw_enabled and (not None in (self.last_run_time, self.prop_vel_lin, self.prop_vel_ang, self.curr_vel_lin)):
+                # TODO: Get predicted throttle, brake, and steering using `twist_controller`
+                # You should only publish the control commands if dbw is enabled
+                self.throttle, self.brake, self.steering = self.controller.control(sample_time,
+                                                                                   self.prop_vel_lin,
+                                                                                   self.prop_vel_ang,
+                                                                                   self.curr_vel_lin)
+                #rospy.logwarn("DBW: Enable({}) Throttle({}) Brake({}) Steering({})".format(self.dbw_enabled, self.throttle, self.brake, self.steering))
+                self.publish(self.throttle, self.brake, self.steering)
+                
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
@@ -92,6 +118,21 @@ class DBWNode(object):
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
 
-
+    def velocity_cb(self, msg):
+        self.curr_vel_lin = msg.twist.linear.x
+    
+    def twist_cb(self, msg):
+        self.prop_vel_lin = msg.twist.linear.x
+        self.prop_vel_ang = msg.twist.angular.z
+        
+    def dbw_enabled_cb(self, msg):
+        # Update only when DBW changes
+        if self.dbw_enabled != msg.data:
+            rospy.logwarn("DBW status changed to {}, was {}".format(msg, self.dbw_enabled))
+            # Reset controller when DBW is re-enabled
+            if msg.data == True: 
+                self.controller.reset()
+            self.dbw_enabled = msg.data
+        
 if __name__ == '__main__':
     DBWNode()
