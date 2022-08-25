@@ -23,7 +23,7 @@ class Controller(object):
         # Filter noisy raw velocity signal
         self.velocity_LPF = LowPassFilter(
             tau = 0.5, # Cutoff frequency = 1/(2pi*tau)
-            ts = 0.02 # 1.0/loop_rate  # Sample time
+            ts = 1.0/loop_rate  # Sample time
         )
         
         self.yaw_controller = YawController(
