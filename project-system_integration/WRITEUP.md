@@ -77,6 +77,9 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
   * rostopic list
   * rostopic info /final_waypoints
   * rosmsg info styx_msgs/Lane
+  * Listen to topics
+    * rostopic echo /final_waypoints
+    * rostopic echo /rosout (for log messages)
 
 ### Baseline code
 
