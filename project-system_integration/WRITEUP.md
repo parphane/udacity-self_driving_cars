@@ -93,5 +93,6 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
   * Run and fixed misc. issues... car is moving and points are displayed 
 
 ### Observations & Todo
+* Update waypoint_follower as suggested by tutorial
 
 ### Vehicle run
