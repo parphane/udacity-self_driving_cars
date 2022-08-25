@@ -23,7 +23,8 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+# WARNING: Too many points points will slow down the execution and delay messages to a point where car control fails.
+LOOKAHEAD_WPS = 150 # Number of waypoints we will publish. You can change this number
 LOOP_RATE = 50.0
 
 
