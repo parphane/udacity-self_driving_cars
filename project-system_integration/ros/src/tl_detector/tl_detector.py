@@ -21,7 +21,7 @@ class TLDetector(object):
         self.pose = None
         self.waypoints = None
         self.waypoints_2d = None
-        self.waypoint_tree = None
+        self.waypoints_tree = None
         self.camera_image = None
         self.lights = []
 
@@ -62,7 +62,7 @@ class TLDetector(object):
         if not self.waypoints_2d:
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in
                                  waypoints.waypoints]
-            self.waypoint_tree = KDTree(self.waypoints_2d)
+            self.waypoints_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -88,11 +88,16 @@ class TLDetector(object):
         if self.state != state:
             self.state_count = 0
             self.state = state
+            #if state == TrafficLight.RED:
+            #    rospy.logwarn("Red light detected:{}".format(light_wp))
+            
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+            #if state == TrafficLight.RED:
+            #    rospy.logwarn("Red light acknowledged:{}".format(light_wp))
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
@@ -109,7 +114,7 @@ class TLDetector(object):
         """
         #TODO implement
         # Reuse method from waypoint_updater
-        return self.waypoint_tree.query([x, y], 1)[1]
+        return self.waypoints_tree.query([x, y], 1)[1]
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -141,6 +146,11 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        
+        # Wait until waypoints & waypoints_tree is initialized
+        if self.waypoints_tree is None:
+            return -1, TrafficLight.UNKNOWN
+        
         closest_light = None
         closest_light_line = None
 
@@ -164,7 +174,8 @@ class TLDetector(object):
                     closest_light_dst = dst_line_car
                     closest_light = light
                     closest_light_line = stop_line_closest_wp
-
+                #rospy.logwarn("closest_light_dst:{} closest_light_line:{}".format(closest_light_dst, closest_light_line))
+                    
         if closest_light:
             state = self.get_light_state(closest_light)
             #rospy.logwarn("Closest light: {}:{}".format(closest_light_line, state))
