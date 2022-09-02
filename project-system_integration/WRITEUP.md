@@ -6,7 +6,7 @@
 
 Drive the vehicle successfully in the simulator.
 
-[Rubric](https://review.udacity.com/#!/rubrics/1972/view) points to be adressed for this writeup:
+[Rubric](https://review.udacity.com/#!/rubrics/3058/view) points to be adressed for this writeup:
 * Running the Code
   * The code is built successfully and connects to the simulator.
 * Control and Planning
