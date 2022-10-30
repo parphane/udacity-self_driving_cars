@@ -26,7 +26,11 @@ Drive the vehicle successfully in the simulator.
 [image1]: ./someimage.png "Some image..."
 
 ## Setup & Useful notes
- ### Workspace configuration
+
+<details>
+  <summary>Local run configuration</summary>
+ 
+   ### Workspace configuration
  
 Note: Skip this part if using online workspace, but be sure to activate GPU mode, else catkin_make will not work
 
@@ -61,7 +65,7 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
    * catkin_make
    * source devel/setup.sh
    * roslaunch launch/styx.launch
-
+</details>
 
 ### Compilation and run
 
@@ -81,21 +85,44 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
     * rostopic echo /final_waypoints
     * rostopic echo /rosout --filter "m.level == 2" (for log INFO messages)
 
-### Baseline code
+### Architecture & Code
+
+#### Architecture 
+
 
 #### waypoint_updater.py
+* Function: Publish waypoints to the Car/Simulator to control throttle/braking/steering
+* LOOKAHEAD_WPS: Maximum number of waypoints to compute and publish for navigation
+  * Set to 50 instead of the default 200 to prevent execution slow down, delayed messages and thus car control failing
+* MAX_DECEL: Maximum allowed deceleration
+* loop:
+  * Publishes computed waypoints, if any
+  * slow_warn: Variable added to publish warning messages every 10 iterations
+* get_closest_waypoint_id: Get the closest waypoint received from base_waypoint topic to start lane generation from
+* generate_lane: Generate the lane starting from the closest waypoint and adding up to LOOKAHEAD_WPS points
+  * Decelerates if the light stop line index is between the closest and furthest waypoints 
+* decelerate_waypoints: Stops the car 2 waypoints before the stop line by updating the base waypoints
+* distance: Computes distance between 2 waypoints for use in velocity determination
+* publish_waypoints: Publish the waypoints
+#### tl_detector.py
+* Function: Detects traffic lights and their color
+* image_cb: Receives images from the camera for traffic light deteciton
+* process_traffic_lights: 
+  * Determines the closest traffic light and its color from "process_traffic_lights"
+  * Confirms traffic light color after 10 loops to prevent glitches
+* process_traffic_lights: 
+  * Using the base waypoints and traffic light positions, determine which traffic light is the closest in front of the vehicle 
+  * Determines the color of the traffic light using internal light state (TODO: Use camera image instead)
+#### waypoint_updater.py
 
-## Reflection / Trial & Error
+## Trial & Error
 
-### Algorithm
-
-### Trial & Error
 * Where to begin from...
   * Updated waypoint_updater.py from course guidance
   * Fixed issue with missing "ros-kinetic-dbw-mkz-msgs" package
   * Run and fixed misc. issues... car is moving and points are displayed 
+  * Fixed LOOKAHEAD_WPS to 50 down from 200 to prevent "lag" in car control and car swerving out of the lane
 
-### Observations & Todo
+## Observations & Todo
 * Update waypoint_follower as suggested by tutorial
-
-### Vehicle run
+* Update traffic light detection with model developed in previous classes
