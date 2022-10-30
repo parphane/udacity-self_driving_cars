@@ -101,7 +101,9 @@ Note: Skip this part if using online workspace, but be sure to activate GPU mode
 * get_closest_waypoint_id: Get the closest waypoint received from base_waypoint topic to start lane generation from
 * generate_lane: Generate the lane starting from the closest waypoint and adding up to LOOKAHEAD_WPS points
   * Decelerates if the light stop line index is between the closest and furthest waypoints 
-* decelerate_waypoints: Stops the car 2 waypoints before the stop line by updating the base waypoints
+* decelerate_waypoints: 
+  * Stops the car 2 waypoints before the stop line
+  * For each waypoint leading to stopline, determine the vehicle velocity/deceleration as a linear relation between the point and its distance to the stop line
 * distance: Computes distance between 2 waypoints for use in velocity determination
 * publish_waypoints: Publish the waypoints
 #### tl_detector.py
